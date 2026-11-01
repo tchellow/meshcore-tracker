@@ -1,5 +1,28 @@
 # Histórico de versões
 
+## [0.3.0] - 2026-11-01
+
+### Novidades
+
+- Conexão por Bluetooth, além do USB, com busca dos rádios por perto.
+- **Windows:** ao conectar um rádio Bluetooth sem pareamento, o programa pede o PIN e faz o pareamento. O PIN não fica guardado no programa.
+- **Ubuntu:** o pareamento continua sendo feito nas configurações de Bluetooth do sistema.
+- O status mostra **Conectando...** enquanto a conexão é feita.
+
+### Correções
+
+- Rádios com muitos contatos não falham mais ao conectar. Por Bluetooth, uma lista com centenas de contatos pode levar perto de um minuto.
+- A mensagem de falha na USB agora orienta a verificar se o firmware é Bluetooth ou Wi-Fi em vez de USB.
+- A janela não mostra mais uma página antiga guardada em cache depois de uma atualização.
+
+### Situação dos testes
+
+- **Windows, Bluetooth:** pareamento e conexão testados com rádio real (ProMicro NRF52840 e T-Deck).
+- **Windows, USB:** conexão testada com rádio real (T-Deck).
+- **Ubuntu:** instalação e janela testadas automaticamente, sem rádio real. O Bluetooth não foi testado nesse sistema.
+- **Problema em aberto:** um rádio Cordeiro Tag pareou, mas não conectou e parou de anunciar. A causa ainda não foi identificada.
+- **Pareamento instável:** o Windows às vezes recusa o pedido sem motivo aparente, e o programa tenta de novo sozinho. Se o rádio for regravado, remova o pareamento antigo nas configurações do Windows.
+
 ## [0.2.2] - 2026-10-31
 
 As versões 0.2.0 e 0.2.1 não foram publicadas e não têm instaladores. A tag `v0.2.0` aponta para um commit incorreto, e a `v0.2.1` não passou nos testes do instalador.

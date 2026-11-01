@@ -2,11 +2,11 @@
 
 ## Conexão
 
-### “Acesso negado” ou “O rádio não respondeu”
+### “Não foi possível conectar pela USB”
 
 Causas mais comuns:
 
-1. **Firmware Bluetooth:** o rádio está com Companion BLE. Grave o **Companion USB** com o MeshCore Flasher. Esse caso também pode aparecer como “Acesso negado”, porque a biblioteca reabre a porta quando o rádio não responde.
+1. **Firmware Bluetooth ou Wi-Fi:** o rádio não responde pelo cabo com esses firmwares, mesmo que a porta apareça na lista. Grave o **Companion USB** com o MeshCore Flasher.
 2. **Porta ocupada:** outro programa está usando o rádio, como o MeshCore Web App no navegador ou um monitor serial. Feche-o e tente de novo.
 3. **Rádio iniciando:** espere alguns segundos depois de ligar o rádio.
 
@@ -24,7 +24,9 @@ Causas mais comuns:
 
 ### A conexão Bluetooth falha ou cai
 
-- **Pareamento:** pareie o rádio nas configurações de Bluetooth do sistema. Se não funcionar, remova o pareamento antigo e faça de novo.
+- **Pareamento:** no Windows, o programa pede o PIN ao conectar um rádio sem pareamento. No Ubuntu, pareie nas configurações de Bluetooth do sistema. Se não funcionar, remova o pareamento antigo nas configurações do sistema e faça de novo.
+- **"O rádio recusou o pareamento":** confira o PIN. Em rádios sem tela, o padrão costuma ser `123456`.
+- **"O rádio não atendeu ao pareamento":** confira se ele está ligado, perto do computador e sem outro aparelho conectado.
 - **Outro aparelho conectado:** desconecte o celular e o MeshCore Web App. O rádio só aceita uma conexão.
 - **Firmware:** confira se é o **Companion Bluetooth**.
 - **Sinal:** aproxime o rádio do computador. Wi-Fi e outros aparelhos Bluetooth podem interferir.

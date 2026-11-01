@@ -103,6 +103,14 @@
   }
   .leaflet-tooltip.rotulo-mapa::before { display: none; }
   .amostra { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border-radius: 2px; }
+  #tela-pin {
+    position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(0, 0, 0, .45);
+  }
+  #form-pin { width: 100%; max-width: 380px; margin: 0; }
+  #pin { width: 100%; margin-bottom: 12px; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
+  #erro-pin { color: var(--falha); margin: 0 0 12px; }
+  #form-pin .botoes { justify-content: flex-end; }
   @media (max-width: 720px) {
     #tela-mapa { flex-direction: column; }
     #lateral { width: 100%; max-height: 32%; border-left: 0; border-top: 1px solid var(--borda); }
@@ -184,6 +192,18 @@
     </div>
   </section>
 </main>
+<div id="tela-pin" hidden>
+  <form id="form-pin" class="cartao" role="dialog" aria-modal="true" aria-labelledby="titulo-pin" autocomplete="off">
+    <h2 id="titulo-pin">Parear rádio</h2>
+    <p id="texto-pin"></p>
+    <input id="pin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required aria-label="PIN do rádio" placeholder="PIN de 6 números" title="6 números">
+    <p id="erro-pin" role="alert" hidden></p>
+    <div class="botoes">
+      <button type="button" id="cancelar-pin">Cancelar</button>
+      <button type="submit" id="enviar-pin">Parear e conectar</button>
+    </div>
+  </form>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -206,7 +226,7 @@ async function api(caminho, metodo = 'GET', corpo) {
   }
   const resp = await fetch(caminho, opcoes);
   const dados = await resp.json();
-  if (!resp.ok) throw new Error(dados.erro || 'Erro inesperado.');
+  if (!resp.ok) throw Object.assign(new Error(dados.erro || 'Erro inesperado.'), { pareamento: dados.pareamento });
   return dados;
 }
 
@@ -521,9 +541,12 @@ function desenharListaConexao() {
 function desenharConexao(estado) {
   estadoAtual = estado;
   $('versao').textContent = `Versão ${estado.versao}`;
+  if (estado.pareia_no_programa) {
+    $('dica-bluetooth').textContent = 'O rádio precisa estar com o firmware Companion Bluetooth e sem outro aparelho conectado a ele, como o celular. Se ainda não estiver pareado, o programa pede o PIN ao conectar.';
+  }
   const conectado = estado.conectado;
   const reconectando = !conectado && Boolean(estado.porta);
-  const textoStatus = conectado ? 'Conectado' : reconectando ? 'Reconectando...' : 'Desconectado';
+  const textoStatus = conectado ? 'Conectado' : conectando ? 'Conectando...' : reconectando ? 'Reconectando...' : 'Desconectado';
   const sinal = () => el('span', { className: conectado ? 'sinal ligado' : 'sinal' });
   $('situacao').replaceChildren(sinal(), textoStatus);
   $('status-conexao').replaceChildren(sinal(), textoStatus);
@@ -575,8 +598,7 @@ async function atualizar() {
 
 async function mudarConexao(fn) {
   conectando = true;
-  $('conectar').disabled = true;
-  $('desconectar').disabled = true;
+  if (estadoAtual) desenharConexao(estadoAtual);
   await acao(fn);
   conectando = false;
   await atualizar();
@@ -584,8 +606,56 @@ async function mudarConexao(fn) {
 $('conectar').onclick = () => {
   const porta = $('portas').value;
   const nome = opcoesConexao().find(o => o.valor === porta)?.nome;
-  mudarConexao(() => api('/api/conectar', 'POST', { porta, nome }));
+  mudarConexao(async () => {
+    const resposta = await api('/api/conectar', 'POST', { porta, nome });
+    if (resposta.precisa_pin) abrirPin(porta, nome);
+  });
 };
+
+let radioParaParear = null;
+
+function abrirPin(porta, nome) {
+  radioParaParear = { porta, nome };
+  $('texto-pin').textContent = `Digite o PIN de ${nome || 'este rádio'} para parear com este computador. Isso só é necessário uma vez.`;
+  $('pin').value = '';
+  $('erro-pin').hidden = true;
+  $('tela-pin').hidden = false;
+  $('pin').focus();
+}
+
+function fecharPin() {
+  radioParaParear = null;
+  $('pin').value = '';
+  $('tela-pin').hidden = true;
+}
+
+$('form-pin').onsubmit = async evento => {
+  evento.preventDefault();
+  $('enviar-pin').disabled = true;
+  $('cancelar-pin').disabled = true;
+  $('enviar-pin').textContent = 'Pareando...';
+  $('erro-pin').hidden = true;
+  await mudarConexao(async () => {
+    try {
+      await api('/api/conectar', 'POST', { ...radioParaParear, pin: $('pin').value });
+      fecharPin();
+    } catch (e) {
+      // Se o erro veio depois do pareamento, o PIN ja cumpriu seu papel.
+      if (!e.pareamento) {
+        fecharPin();
+        throw e;
+      }
+      $('erro-pin').textContent = e.message;
+      $('erro-pin').hidden = false;
+      $('pin').select();
+    }
+  });
+  $('enviar-pin').disabled = false;
+  $('cancelar-pin').disabled = false;
+  $('enviar-pin').textContent = 'Parear e conectar';
+};
+$('cancelar-pin').onclick = fecharPin;
+
 $('desconectar').onclick = () => mudarConexao(() => api('/api/desconectar', 'POST'));
 $('atualizar-portas').onclick = () => acao($('tipo-conexao').value === 'ble' ? procurarBluetooth : carregarPortas);
 $('tipo-conexao').onchange = () => {
@@ -621,7 +691,9 @@ $('engrenagem').onclick = evento => {
 };
 document.addEventListener('click', fecharMenu);
 document.addEventListener('keydown', evento => {
-  if (evento.key === 'Escape') fecharMenu();
+  if (evento.key !== 'Escape') return;
+  fecharMenu();
+  if (!$('cancelar-pin').disabled) fecharPin();
 });
 $('menu-automacao').onclick = () => abrirTela('automacao');
 $('menu-conexao').onclick = () => abrirTela('conexao');

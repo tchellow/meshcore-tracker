@@ -33,10 +33,15 @@ Se o sistema não tiver o motor da janela, o programa abre no navegador, em `htt
 ### Por Bluetooth
 
 1. Grave o firmware **Companion Bluetooth** no rádio.
-2. Pareie o rádio nas configurações de Bluetooth do sistema, usando o PIN dele. Em rádios sem tela, o padrão costuma ser `123456`.
-3. Desconecte o rádio do celular ou de outro aparelho. Ele só aceita uma conexão por vez, e deixa de anunciar enquanto estiver conectado.
+2. Desconecte o rádio do celular ou de outro aparelho. Ele só aceita uma conexão por vez, e deixa de anunciar enquanto estiver conectado.
+3. **No Ubuntu:** pareie o rádio nas configurações de Bluetooth do sistema, usando o PIN dele.
 4. Em **Tipo**, escolha **Bluetooth**. O programa procura os rádios por alguns segundos. Clique em **Procurar** para repetir.
 5. Escolha o rádio e clique em **Conectar**.
+6. **No Windows:** se o rádio ainda não estiver pareado, o programa pede o PIN e faz o pareamento. O PIN não fica guardado no programa, e isso só é necessário uma vez.
+
+Em rádios sem tela, o PIN padrão costuma ser `123456`.
+
+Ao conectar, o programa lê a lista de contatos do rádio. Por Bluetooth, uma lista com centenas de contatos pode levar perto de um minuto.
 
 Alguns rádios anunciam sem enviar o nome e aparecem como **Rádio sem nome**. Depois da primeira conexão, o programa memoriza o nome.
 

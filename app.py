@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 import logging.handlers
+import re
 import sys
 import threading
 import time
@@ -27,7 +28,7 @@ from banco import INTERVALOS_S, Banco, pasta_dados
 from bluetooth import NOME_DESCONHECIDO, procurar_radios
 from janela import Janela
 from portas import listar_portas
-from radio import TIPOS_CONTATO, Radio, RadioErro, endereco_bluetooth
+from radio import PAREIA_NO_PROGRAMA, TIPOS_CONTATO, PareamentoFalhou, PinNecessario, Radio, RadioErro, endereco_bluetooth
 from versao import VERSAO
 
 logger = logging.getLogger("tracker")
@@ -88,6 +89,7 @@ def criar_app(banco, encerrar, mostrar_janela):
             "nome_radio": banco.config("nome_radio"),
             "erro": radio.erro,
             "estado_desde": radio.estado_desde(),
+            "pareia_no_programa": PAREIA_NO_PROGRAMA,
             "intervalos": INTERVALOS_S,
             "rastreados": rastreados_com_rota(),
         })
@@ -116,8 +118,17 @@ def criar_app(banco, encerrar, mostrar_janela):
         if not porta or not isinstance(porta, str):
             return erro("Escolha uma porta ou um rádio.")
         nome = dados.get("nome")
+        pin = dados.get("pin")
+        if pin is not None and not (isinstance(pin, str) and re.fullmatch("[0-9]{6}", pin)):
+            return erro("O PIN tem 6 números.")
         try:
-            await radio.conectar(porta)
+            await radio.conectar(porta, pin)
+        except PinNecessario:
+            # A tela vai pedir o PIN: ainda nao e um erro.
+            radio.erro = None
+            return JSONResponse({"precisa_pin": True})
+        except PareamentoFalhou as falha:
+            return JSONResponse({"erro": str(falha), "pareamento": True}, status_code=400)
         except RadioErro as falha:
             return erro(str(falha))
         endereco = endereco_bluetooth(porta)

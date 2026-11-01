@@ -39,7 +39,7 @@ O instalador não exige Python. Os detalhes, inclusive o aviso do Windows SmartS
 
 ## Requisitos
 
-- Rádio MeshCore com firmware **Companion USB**, para o cabo, ou **Companion Bluetooth**, pareado no sistema. Um firmware não responde pela conexão do outro.
+- Rádio MeshCore com firmware **Companion USB**, para o cabo, ou **Companion Bluetooth**. No Windows, o programa pede o PIN e faz o pareamento; no Ubuntu, pareie nas configurações do sistema. Um firmware não responde pela conexão do outro.
 - Nos contatos rastreados: permissão para enviar telemetria e localização a este rádio, e GPS com sinal.
 - Internet para carregar o mapa.
 
