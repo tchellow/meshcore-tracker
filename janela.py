@@ -5,6 +5,8 @@ import sys
 import threading
 from pathlib import Path
 
+from versao import VERSAO
+
 logger = logging.getLogger("tracker")
 
 TITULO = "Meshcore Tracker"
@@ -23,8 +25,9 @@ class Janela:
         """Bloqueia ate a janela fechar. Falha se o sistema nao tiver o motor web."""
         import webview
 
+        # A versao no endereco ignora paginas guardadas por versoes anteriores do programa.
         self.janela = webview.create_window(
-            TITULO, self.url, width=1100, height=680, min_size=(800, 500), maximized=True, text_select=True
+            TITULO, f"{self.url}/?v={VERSAO}", width=1100, height=680, min_size=(800, 500), maximized=True, text_select=True
         )
         self.janela.events.minimized += self._ao_minimizar
         self.janela.events.restored += self._ao_restaurar

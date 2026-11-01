@@ -20,6 +20,8 @@ def chamar(caminho, metodo="GET"):
     cabecalhos = {} if metodo == "GET" else {"Content-Type": "application/json"}
     pedido = urllib.request.Request(BASE + caminho, data=dados, method=metodo, headers=cabecalhos)
     with urllib.request.urlopen(pedido, timeout=5) as resposta:
+        # A janela guarda cache em disco: uma pagina sem isto ficaria antiga apos atualizar.
+        assert resposta.headers["Cache-Control"] == "no-cache", f"{caminho} sem no-cache"
         return resposta.read()
 
 

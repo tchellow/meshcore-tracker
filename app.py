@@ -46,6 +46,15 @@ class ExigeJson(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+class SempreRevalidar(BaseHTTPMiddleware):
+    """A janela guarda cache em disco: sem isto, uma atualizacao ainda mostraria a pagina antiga."""
+
+    async def dispatch(self, request, call_next):
+        resposta = await call_next(request)
+        resposta.headers["Cache-Control"] = "no-cache"
+        return resposta
+
+
 def erro(mensagem, status=400):
     return JSONResponse({"erro": mensagem}, status_code=status)
 
@@ -210,6 +219,7 @@ def criar_app(banco, encerrar, mostrar_janela):
         middleware=[
             Middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"]),
             Middleware(ExigeJson),
+            Middleware(SempreRevalidar),
         ],
         lifespan=ciclo,
     )
