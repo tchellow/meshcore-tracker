@@ -1,8 +1,8 @@
 # Histórico de versões
 
-## [0.2.1] - 2026-10-31
+## [0.2.2] - 2026-10-31
 
-A versão 0.2.0 não foi publicada. A tag `v0.2.0` aponta para um commit incorreto e não tem instaladores.
+As versões 0.2.0 e 0.2.1 não foram publicadas e não têm instaladores. A tag `v0.2.0` aponta para um commit incorreto, e a `v0.2.1` não passou nos testes do instalador.
 
 ### Novidades
 

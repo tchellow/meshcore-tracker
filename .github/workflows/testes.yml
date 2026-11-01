@@ -34,6 +34,18 @@ jobs:
       - run: python scripts/compilar.py
       - run: python scripts/testar_binario.py dist\meshcore-tracker\meshcore-tracker.exe
       - run: python scripts/testar_janela.py dist\meshcore-tracker\meshcore-tracker.exe janela-windows.png
+      - run: choco install innosetup --no-progress -y
+      - run: iscc /DVersao=0.0.0 instalador\windows.iss
+      - name: Testar a janela do programa instalado, tres vezes
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem instalador-saida\*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Meshcore Tracker\meshcore-tracker.exe'
+          foreach ($i in 1..3) {
+            python scripts/testar_janela.py $exe
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -67,6 +79,9 @@ jobs:
           openbox &
           sleep 2
           dbus-run-session -- python scripts/testar_janela.py /usr/bin/meshcore-tracker "janela-${{ matrix.os }}.png"
+          for i in 1 2; do
+            dbus-run-session -- python scripts/testar_janela.py /usr/bin/meshcore-tracker
+          done
       - name: Desinstalar
         run: |
           sudo apt-get remove -y meshcore-tracker
