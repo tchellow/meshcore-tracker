@@ -18,9 +18,9 @@
 ### Situação dos testes
 
 - **Windows, Bluetooth:** pareamento e conexão testados com rádio real (ProMicro NRF52840 e T-Deck).
-- **Windows, USB:** conexão testada com rádio real (T-Deck).
+- **Windows, USB:** conexão testada com rádio real (ProMicro NRF52840 e T-Deck). Telemetria testada pelo ProMicro.
 - **Ubuntu:** instalação e janela testadas automaticamente, sem rádio real. O Bluetooth não foi testado nesse sistema.
-- **Problema em aberto:** um rádio Cordeiro Tag pareou, mas não conectou e parou de anunciar. A causa ainda não foi identificada.
+- **Problema em aberto:** um dos rádios testados pareou por Bluetooth, mas não conectou e parou de anunciar. A causa ainda não foi identificada.
 - **Pareamento instável:** o Windows às vezes recusa o pedido sem motivo aparente, e o programa tenta de novo sozinho. Se o rádio for regravado, remova o pareamento antigo nas configurações do Windows.
 
 ## [0.2.2] - 2026-10-31
