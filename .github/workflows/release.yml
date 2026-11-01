@@ -11,6 +11,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -42,6 +43,8 @@ jobs:
           $pasta = Join-Path $env:LOCALAPPDATA 'Programs\Meshcore Tracker'
           python scripts/testar_binario.py (Join-Path $pasta 'meshcore-tracker.exe')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/testar_janela.py (Join-Path $pasta 'meshcore-tracker.exe')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Start-Process (Join-Path $pasta 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
           Start-Sleep -Seconds 5
           if (Test-Path (Join-Path $pasta 'meshcore-tracker.exe')) { throw 'A desinstalacao nao removeu o programa.' }
@@ -53,13 +56,14 @@ jobs:
           if-no-files-found: error
 
   ubuntu:
-    # Compila no Ubuntu mais antigo suportado para o pacote rodar nos mais novos.
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+      # O pacote e criado com o Python mais antigo suportado.
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.10"
 
       - name: Conferir a versao
         run: |
@@ -67,23 +71,8 @@ jobs:
           test "v$versao" = "$GITHUB_REF_NAME"
           echo "VERSAO=$versao" >> "$GITHUB_ENV"
 
-      - run: python -m pip install -r requirements.txt pyinstaller
-      - run: python -m unittest discover -s tests -t .
-      - run: python scripts/compilar.py
-      - name: Testar o programa compilado
-        run: python scripts/testar_binario.py dist/meshcore-tracker/meshcore-tracker
-
       - name: Criar o pacote
         run: bash instalador/criar_deb.sh "$VERSAO"
-
-      - name: Testar instalar, abrir e desinstalar
-        run: |
-          sudo apt-get install -y "./instalador-saida/MeshcoreTracker-$VERSAO-ubuntu-amd64.deb"
-          python scripts/testar_binario.py /usr/bin/meshcore-tracker
-          test -f /usr/share/applications/meshcore-tracker.desktop
-          test -f /usr/lib/udev/rules.d/70-meshcore-tracker.rules
-          sudo apt-get remove -y meshcore-tracker
-          test ! -e /usr/bin/meshcore-tracker
 
       - uses: actions/upload-artifact@v7
         with:
@@ -91,8 +80,46 @@ jobs:
           path: instalador-saida/*.deb
           if-no-files-found: error
 
+  ubuntu-teste:
+    needs: ubuntu
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -t .
+      - uses: actions/download-artifact@v8
+        with:
+          name: ubuntu
+          path: arquivos
+      - name: Instalar o pacote
+        run: sudo apt-get update && sudo apt-get install -y ./arquivos/*.deb
+      - run: sudo apt-get install -y xvfb openbox wmctrl dbus-x11
+      - run: python scripts/testar_binario.py /usr/bin/meshcore-tracker
+      - name: Testar a janela
+        run: |
+          Xvfb :99 -screen 0 1280x800x24 &
+          sleep 2
+          export DISPLAY=:99
+          openbox &
+          sleep 2
+          dbus-run-session -- python scripts/testar_janela.py /usr/bin/meshcore-tracker
+      - name: Desinstalar
+        run: |
+          test -f /usr/share/applications/meshcore-tracker.desktop
+          test -f /usr/lib/udev/rules.d/70-meshcore-tracker.rules
+          sudo apt-get remove -y meshcore-tracker
+          test ! -e /usr/bin/meshcore-tracker
+
   publicar:
-    needs: [windows, ubuntu]
+    needs: [windows, ubuntu-teste]
     runs-on: ubuntu-latest
     permissions:
       contents: write

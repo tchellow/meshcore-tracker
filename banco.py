@@ -46,7 +46,8 @@ def pasta_dados():
 class Banco:
     def __init__(self, pasta):
         pasta.mkdir(parents=True, exist_ok=True)
-        self.con = sqlite3.connect(pasta / "tracker.db", isolation_level=None)
+        # Criado na linha principal, mas depois usado so pela linha do servidor.
+        self.con = sqlite3.connect(pasta / "tracker.db", isolation_level=None, check_same_thread=False)
         self.con.row_factory = sqlite3.Row
         self.con.executescript(ESQUEMA)
         self._migrar_intervalo_em_minutos()

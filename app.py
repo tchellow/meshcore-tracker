@@ -6,8 +6,6 @@ import contextlib
 import json
 import logging
 import logging.handlers
-import os
-import socket
 import sys
 import threading
 import time
@@ -26,9 +24,12 @@ from starlette.staticfiles import StaticFiles
 
 import automacao
 from banco import INTERVALOS_S, Banco, pasta_dados
+from janela import Janela
 from portas import listar_portas
 from radio import TIPOS_CONTATO, Radio, RadioErro
 from versao import VERSAO
+
+logger = logging.getLogger("tracker")
 
 EMPACOTADO = getattr(sys, "frozen", False)
 PASTA_STATIC = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "static"
@@ -48,7 +49,7 @@ def erro(mensagem, status=400):
     return JSONResponse({"erro": mensagem}, status_code=status)
 
 
-def criar_app(banco, encerrar):
+def criar_app(banco, encerrar, mostrar_janela):
     radio = Radio()
 
     async def corpo(request):
@@ -148,6 +149,9 @@ def criar_app(banco, encerrar):
         encerrar()
         return JSONResponse({"ok": True})
 
+    async def mostrar(request):
+        return JSONResponse({"janela": mostrar_janela()})
+
     @contextlib.asynccontextmanager
     async def ciclo(app):
         # Volta a usar a ultima porta escolhida, para continuar sozinho apos reiniciar.
@@ -173,6 +177,7 @@ def criar_app(banco, encerrar):
             Route("/api/rastreados/{chave}", remover, methods=["DELETE"]),
             Route("/api/rastreados/{chave}/pedir", pedir_agora, methods=["POST"]),
             Route("/api/encerrar", sair, methods=["POST"]),
+            Route("/api/mostrar", mostrar, methods=["POST"]),
             Mount("/static", StaticFiles(directory=PASTA_STATIC)),
         ],
         middleware=[
@@ -183,10 +188,10 @@ def criar_app(banco, encerrar):
     )
 
 
-def configurar_logs(pasta):
-    """Empacotado, o programa nao tem terminal: os registros vao para um arquivo."""
+def configurar_logs(pasta, em_arquivo):
+    """Instalado, o programa nao tem terminal: os registros vao para um arquivo."""
     formato = "%(asctime)s %(levelname)s %(name)s: %(message)s"
-    if EMPACOTADO:
+    if em_arquivo:
         pasta.mkdir(parents=True, exist_ok=True)
         arquivo = logging.handlers.RotatingFileHandler(
             pasta / "tracker.log", maxBytes=1_000_000, backupCount=1, encoding="utf-8"
@@ -206,58 +211,95 @@ def ja_esta_aberto(url):
         return False
 
 
-def abrir_navegador(url):
-    # O empacotador do Linux altera LD_LIBRARY_PATH, o que pode impedir o navegador de abrir.
-    if EMPACOTADO and sys.platform.startswith("linux"):
-        original = os.environ.pop("LD_LIBRARY_PATH_ORIG", None)
-        if original is None:
-            os.environ.pop("LD_LIBRARY_PATH", None)
-        else:
-            os.environ["LD_LIBRARY_PATH"] = original
+def mostrar_o_que_esta_aberto(url):
+    """Pede para a copia aberta mostrar a janela. Sem janela, ela esta usando o navegador."""
+    pedido = urllib.request.Request(
+        f"{url}/api/mostrar", data=b"{}", method="POST", headers={"Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(pedido, timeout=5) as resposta:
+            if json.load(resposta)["janela"]:
+                return
+    except (OSError, ValueError, KeyError):
+        logger.exception("A copia aberta nao respondeu")
     webbrowser.open(url)
 
 
-def abrir_quando_pronto(url, porta):
-    for _ in range(100):
-        with contextlib.suppress(OSError), socket.create_connection(("127.0.0.1", porta), timeout=1):
-            abrir_navegador(url)
-            return
-        time.sleep(0.1)
+def rodar_com_interface(servidor, url, pasta, usar_janela):
+    """O servidor roda em segundo plano, e a interface fica na linha principal."""
+    linha = threading.Thread(target=servidor.run, daemon=True)
+    linha.start()
+    while not servidor.started:
+        if not linha.is_alive():
+            logger.error("Nao foi possivel iniciar o servidor em %s", url)
+            return 1
+        time.sleep(0.05)
+
+    if usar_janela is not None:
+        try:
+            usar_janela.abrir()
+        except Exception:
+            # Sem o motor web do sistema, o navegador ainda atende.
+            logger.exception("Nao foi possivel abrir a janela; usando o navegador")
+            usar_janela.janela = None
+        else:
+            servidor.should_exit = True
+            linha.join(timeout=10)
+            return 0
+
+    webbrowser.open(url)
+    try:
+        while linha.is_alive():
+            linha.join(timeout=1)
+    except KeyboardInterrupt:
+        servidor.should_exit = True
+        linha.join(timeout=10)
+    return 0
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--porta-web", type=int, default=8790)
     parser.add_argument("--dados", type=Path, default=None, help="pasta do banco de dados")
-    parser.add_argument("--sem-navegador", action="store_true")
+    parser.add_argument("--navegador", action="store_true", help="usa o navegador em vez da janela")
+    parser.add_argument("--sem-navegador", action="store_true", help="roda sem nenhuma interface")
+    parser.add_argument("--registro-em-arquivo", action="store_true")
     args = parser.parse_args()
 
     pasta = args.dados or pasta_dados()
-    configurar_logs(pasta)
+    configurar_logs(pasta, EMPACOTADO or args.registro_em_arquivo)
 
     url = f"http://127.0.0.1:{args.porta_web}"
 
-    # Abrir o programa de novo so mostra a janela do que ja esta rodando.
+    # Abrir o programa de novo so mostra o que ja esta rodando.
     if ja_esta_aberto(url):
         if not args.sem_navegador:
-            abrir_navegador(url)
-        return
+            mostrar_o_que_esta_aberto(url)
+        return 0
 
-    print(f"Meshcore Tracker {VERSAO} em {url} (use Sair no menu da engrenagem)", flush=True)
-    if not args.sem_navegador:
-        threading.Thread(target=abrir_quando_pronto, args=(url, args.porta_web), daemon=True).start()
+    print(f"Meshcore Tracker {VERSAO} em {url}", flush=True)
 
+    janela = None if args.navegador or args.sem_navegador else Janela(url, pasta)
     servidor = None
 
     def encerrar():
         servidor.should_exit = True
+        if janela is not None:
+            janela.fechar()
 
-    app = criar_app(Banco(pasta), encerrar)
+    def mostrar_janela():
+        return janela is not None and janela.mostrar()
+
+    app = criar_app(Banco(pasta), encerrar, mostrar_janela)
     # log_config=None evita o formatador do uvicorn, que falha sem terminal.
     configuracao = uvicorn.Config(app, host="127.0.0.1", port=args.porta_web, log_config=None)
     servidor = uvicorn.Server(configuracao)
-    servidor.run()
+
+    if args.sem_navegador:
+        servidor.run()
+        return 0
+    return rodar_com_interface(servidor, url, pasta, janela)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

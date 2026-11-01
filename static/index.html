@@ -29,7 +29,8 @@
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px;
     background: var(--painel); border-bottom: 1px solid var(--borda);
   }
-  h1 { font-size: 16px; margin: 0; }
+  h1 { display: flex; align-items: center; gap: 8px; font-size: 16px; line-height: 22px; margin: 0; }
+  h1 img { display: block; width: 22px; height: 22px; }
   h2 { font-size: 15px; margin: 0 0 10px; }
   .topo-direita { display: flex; align-items: center; gap: 14px; margin-left: auto; }
   .menu-config { position: relative; }
@@ -110,7 +111,7 @@
 </head>
 <body>
 <header>
-  <h1>Meshcore Tracker</h1>
+  <h1><img src="/static/icone.svg" alt="">Meshcore Tracker</h1>
   <div class="topo-direita">
     <span id="situacao"><span class="sinal"></span>Desconectado</span>
     <div class="menu-config">
@@ -284,8 +285,10 @@ function leituras(item) {
 const mapa = L.map('mapa').setView([-15.8, -47.9], 4);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
 }).addTo(mapa);
+// Na janela do programa, um link sem target tomaria o lugar da interface.
+mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
 
 const marcadores = new Map();
 let mapaEnquadrado = false;
@@ -535,6 +538,7 @@ function abrirTela(nome) {
 }
 
 function fecharMenu() {
+  $('menu-sair').textContent = 'Sair';
   $('menu').hidden = true;
   $('engrenagem').setAttribute('aria-expanded', 'false');
 }
@@ -550,8 +554,13 @@ document.addEventListener('keydown', evento => {
 });
 $('menu-automacao').onclick = () => abrirTela('automacao');
 $('menu-conexao').onclick = () => abrirTela('conexao');
-$('menu-sair').onclick = async () => {
-  if (!confirm('Encerrar o Meshcore Tracker? Os pedidos de telemetria vão parar.')) return;
+$('menu-sair').onclick = async evento => {
+  // A confirmacao fica no proprio menu porque dialogos variam entre os motores das janelas.
+  if ($('menu-sair').textContent === 'Sair') {
+    evento.stopPropagation();
+    $('menu-sair').textContent = 'Confirmar saída';
+    return;
+  }
   programaEncerrado = true;
   try { await api('/api/encerrar', 'POST'); } catch {}
   avisar('O Meshcore Tracker foi encerrado. Pode fechar esta aba.');
