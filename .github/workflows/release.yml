@@ -1,0 +1,119 @@
+name: Release
+
+# Publica os instaladores ao enviar uma tag vX.Y.Z igual a VERSAO de versao.py.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Conferir a versao
+        shell: bash
+        run: |
+          versao="$(python -c 'from versao import VERSAO; print(VERSAO)')"
+          test "v$versao" = "$GITHUB_REF_NAME"
+          echo "VERSAO=$versao" >> "$GITHUB_ENV"
+
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - run: python -m unittest discover -s tests -t .
+      - run: python scripts/compilar.py
+      - name: Testar o programa compilado
+        run: python scripts/testar_binario.py dist\meshcore-tracker\meshcore-tracker.exe
+
+      - run: choco install innosetup --no-progress -y
+      - name: Criar o instalador
+        run: iscc /DVersao=$env:VERSAO instalador\windows.iss
+
+      - name: Testar instalar, abrir e desinstalar
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem instalador-saida\*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          $pasta = Join-Path $env:LOCALAPPDATA 'Programs\Meshcore Tracker'
+          python scripts/testar_binario.py (Join-Path $pasta 'meshcore-tracker.exe')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Start-Process (Join-Path $pasta 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path (Join-Path $pasta 'meshcore-tracker.exe')) { throw 'A desinstalacao nao removeu o programa.' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: instalador-saida/*.exe
+          if-no-files-found: error
+
+  ubuntu:
+    # Compila no Ubuntu mais antigo suportado para o pacote rodar nos mais novos.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Conferir a versao
+        run: |
+          versao="$(python -c 'from versao import VERSAO; print(VERSAO)')"
+          test "v$versao" = "$GITHUB_REF_NAME"
+          echo "VERSAO=$versao" >> "$GITHUB_ENV"
+
+      - run: python -m pip install -r requirements.txt pyinstaller
+      - run: python -m unittest discover -s tests -t .
+      - run: python scripts/compilar.py
+      - name: Testar o programa compilado
+        run: python scripts/testar_binario.py dist/meshcore-tracker/meshcore-tracker
+
+      - name: Criar o pacote
+        run: bash instalador/criar_deb.sh "$VERSAO"
+
+      - name: Testar instalar, abrir e desinstalar
+        run: |
+          sudo apt-get install -y "./instalador-saida/MeshcoreTracker-$VERSAO-ubuntu-amd64.deb"
+          python scripts/testar_binario.py /usr/bin/meshcore-tracker
+          test -f /usr/share/applications/meshcore-tracker.desktop
+          test -f /usr/lib/udev/rules.d/70-meshcore-tracker.rules
+          sudo apt-get remove -y meshcore-tracker
+          test ! -e /usr/bin/meshcore-tracker
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu
+          path: instalador-saida/*.deb
+          if-no-files-found: error
+
+  publicar:
+    needs: [windows, ubuntu]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: arquivos
+          merge-multiple: true
+
+      - name: Gerar as somas de verificacao
+        working-directory: arquivos
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: Extrair as notas desta versao
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          awk -v v="$versao" '$0 ~ "^## \\[?" v {achou=1; next} /^## / {achou=0} achou' CHANGELOG.md > notas.md
+          test -s notas.md
+
+      - name: Publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" arquivos/* --title "Meshcore Tracker $GITHUB_REF_NAME" --notes-file notas.md

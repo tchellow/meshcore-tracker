@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1283b5"/>
+      <stop offset="1" stop-color="#07425e"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#fundo)"/>
+  <g fill="none" stroke="#9fe0ff" stroke-width="24" stroke-linecap="round">
+    <path d="M98 104a150 150 0 0 0-42 104"/>
+    <path d="M414 104a150 150 0 0 1 42 104"/>
+  </g>
+  <path d="M256 54c-84 0-150 66-150 150 0 112 150 252 150 252s150-140 150-252c0-84-66-150-150-150z" fill="#ffffff"/>
+  <rect x="226" y="124" width="60" height="160" rx="10" fill="#d32f2f"/>
+  <rect x="176" y="174" width="160" height="60" rx="10" fill="#d32f2f"/>
+</svg>

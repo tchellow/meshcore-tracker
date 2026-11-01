@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meshcore Tracker</title>
+<link rel="icon" href="/static/icone.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root {
+    --fundo: #f4f5f7; --painel: #ffffff; --borda: #d9dde3; --texto: #1c2430; --suave: #5e6a7a;
+    --acento: #0b6e99; --ok: #1a7f4b; --alerta: #a86400; --falha: #b3261e; --antigo: #7a8494;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fundo: #14181e; --painel: #1d232b; --borda: #333c48; --texto: #e7ebf0; --suave: #9aa6b5;
+      --acento: #4fb3dc; --ok: #4cc38a; --alerta: #e0a13a; --falha: #f2746b; --antigo: #8a95a5;
+    }
+  }
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; background: var(--fundo); color: var(--texto);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 16px;
+    background: var(--painel); border-bottom: 1px solid var(--borda);
+  }
+  h1 { font-size: 16px; margin: 0; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .topo-direita { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+  .menu-config { position: relative; }
+  #engrenagem { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; }
+  #engrenagem svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #menu {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 2000; min-width: 170px; padding: 4px;
+    background: var(--painel); border: 1px solid var(--borda); border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+  }
+  #menu button { display: block; width: 100%; text-align: left; border: 0; }
+  #menu button:hover { background: var(--fundo); }
+  #versao { padding: 6px 10px 2px; font-size: 12px; border-top: 1px solid var(--borda); margin-top: 4px; }
+  .barra-tela { max-width: 1000px; margin: 0 auto 12px; }
+  .dados-conexao { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; align-items: center; margin: 0 0 16px; }
+  .dados-conexao dt { color: var(--suave); }
+  .dados-conexao dd { margin: 0; min-width: 0; }
+  .dados-conexao select { max-width: 100%; }
+  #cronometro { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 18px; }
+  #erro-conexao { color: var(--falha); margin: 0 0 14px; }
+  .botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  button, select, input {
+    font: inherit; color: inherit; background: var(--painel);
+    border: 1px solid var(--borda); border-radius: 6px; padding: 5px 10px; min-height: 32px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--acento); }
+  button:disabled { opacity: .55; cursor: default; }
+  :focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+  .sinal { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--falha); }
+  .sinal.ligado { background: var(--ok); }
+  #aviso { padding: 8px 16px; background: var(--painel); color: var(--falha); border-bottom: 1px solid var(--borda); }
+  main { flex: 1; min-height: 0; display: flex; }
+  [hidden] { display: none !important; }
+  #tela-mapa { flex: 1; min-width: 0; display: flex; }
+  #mapa { flex: 1; min-width: 0; }
+  #lateral { width: 270px; overflow-y: auto; background: var(--painel); border-left: 1px solid var(--borda); }
+  .dispositivo {
+    display: block; width: 100%; padding: 10px 14px; text-align: left; background: none;
+    border: 0; border-bottom: 1px solid var(--borda); border-radius: 0;
+  }
+  .dispositivo strong { display: block; overflow-wrap: anywhere; }
+  .suave { color: var(--suave); }
+  #tela-automacao, #tela-conexao { flex: 1; overflow-y: auto; padding: 16px; }
+  .cartao {
+    max-width: 1000px; margin: 0 auto 16px; padding: 14px 16px;
+    background: var(--painel); border: 1px solid var(--borda); border-radius: 8px;
+  }
+  .rolagem { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 8px 8px 0; text-align: left; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+  th { font-weight: 600; color: var(--suave); white-space: nowrap; }
+  td.nome { overflow-wrap: anywhere; min-width: 130px; }
+  td.acoes { white-space: nowrap; }
+  .detalhe { display: block; margin-top: 2px; font-size: 12px; color: var(--suave); white-space: nowrap; }
+  .detalhe.alerta { color: var(--alerta); }
+  input[type=search] { flex: 1; min-width: 160px; }
+  .busca { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .estado-ok { color: var(--ok); } .estado-alerta { color: var(--alerta); } .estado-falha { color: var(--falha); }
+  #lista-contatos { max-height: 340px; overflow-y: auto; }
+  .contato { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borda); }
+  .contato span:first-child { flex: 1; overflow-wrap: anywhere; }
+  code { font-size: 12px; color: var(--suave); }
+  .icone-veiculo { background: none; border: 0; }
+  .icone-veiculo svg { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
+  .leaflet-tooltip.rotulo-mapa {
+    padding: 0 2px; background: transparent; color: #000; font-weight: 700;
+    border: 0; box-shadow: none;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff;
+  }
+  .leaflet-tooltip.rotulo-mapa::before { display: none; }
+  .amostra { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border-radius: 2px; }
+  @media (max-width: 720px) {
+    #tela-mapa { flex-direction: column; }
+    #lateral { width: 100%; max-height: 32%; border-left: 0; border-top: 1px solid var(--borda); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Meshcore Tracker</h1>
+  <div class="topo-direita">
+    <span id="situacao"><span class="sinal"></span>Desconectado</span>
+    <div class="menu-config">
+      <button id="engrenagem" aria-label="Configurações" title="Configurações" aria-haspopup="menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <div id="menu" role="menu" hidden>
+        <button role="menuitem" id="menu-automacao">Automação</button>
+        <button role="menuitem" id="menu-conexao">Conexão</button>
+        <button role="menuitem" id="menu-sair">Sair</button>
+        <div id="versao" class="suave"></div>
+      </div>
+    </div>
+  </div>
+</header>
+<div id="aviso" role="alert" hidden></div>
+<main>
+  <section id="tela-mapa">
+    <div id="mapa"></div>
+    <aside id="lateral"></aside>
+  </section>
+  <section id="tela-conexao" hidden>
+    <div class="barra-tela"><button class="voltar-mapa">← Voltar ao mapa</button></div>
+    <div class="cartao">
+      <h2>Conexão</h2>
+      <dl class="dados-conexao">
+        <dt>Status</dt>
+        <dd id="status-conexao"></dd>
+        <dt>Porta</dt>
+        <dd><select id="portas" aria-label="Porta USB"></select></dd>
+        <dt id="rotulo-tempo">Tempo desconectado</dt>
+        <dd id="cronometro">00:00:00</dd>
+      </dl>
+      <p id="erro-conexao" role="alert" hidden></p>
+      <div class="botoes">
+        <button id="conectar">Conectar</button>
+        <button id="desconectar">Desconectar</button>
+        <button id="atualizar-portas" title="Procurar portas USB">Procurar</button>
+      </div>
+    </div>
+  </section>
+  <section id="tela-automacao" hidden>
+    <div class="barra-tela"><button class="voltar-mapa">← Voltar ao mapa</button></div>
+    <div class="cartao">
+      <h2>Contatos rastreados</h2>
+      <div class="rolagem"><table>
+        <thead><tr><th>Contato</th><th>Ligado</th><th>Intervalo</th><th>Rota</th><th>Situação</th><th>Última resposta</th><th>Próximo</th><th></th></tr></thead>
+        <tbody id="tabela"></tbody>
+      </table></div>
+      <p class="suave" id="sem-rastreados" hidden>Nenhum contato selecionado. Adicione um abaixo.</p>
+    </div>
+    <div class="cartao">
+      <h2>Adicionar contato</h2>
+      <div class="busca">
+        <input type="search" id="busca" placeholder="Buscar por nome" aria-label="Buscar contato">
+        <button id="atualizar-contatos">Atualizar lista</button>
+      </div>
+      <div id="lista-contatos"></div>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const $ = id => document.getElementById(id);
+
+// Nomes de contato vem da malha: sempre entram como texto, nunca como HTML.
+function el(tag, props = {}, ...filhos) {
+  const n = document.createElement(tag);
+  Object.assign(n, props);
+  n.append(...filhos);
+  return n;
+}
+
+async function api(caminho, metodo = 'GET', corpo) {
+  const opcoes = { method: metodo };
+  if (metodo !== 'GET') {
+    opcoes.headers = { 'Content-Type': 'application/json' };
+    opcoes.body = JSON.stringify(corpo ?? {});
+  }
+  const resp = await fetch(caminho, opcoes);
+  const dados = await resp.json();
+  if (!resp.ok) throw new Error(dados.erro || 'Erro inesperado.');
+  return dados;
+}
+
+function avisar(texto) {
+  $('aviso').textContent = texto || '';
+  $('aviso').hidden = !texto;
+}
+
+async function acao(fn) {
+  try {
+    avisar('');
+    await fn();
+  } catch (e) {
+    avisar(e.message);
+  }
+  await atualizar();
+}
+
+function tempoAtras(ts) {
+  if (!ts) return 'nunca';
+  const s = Math.max(0, Date.now() / 1000 - ts);
+  if (s < 60) return 'agora há pouco';
+  if (s < 3600) return `há ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `há ${Math.floor(s / 3600)} h`;
+  return new Date(ts * 1000).toLocaleString('pt-BR');
+}
+
+function tempoAte(item) {
+  if (!item.ativo) return 'desligado';
+  const s = item.proximo_em - Date.now() / 1000;
+  if (s <= 0) return 'na fila';
+  if (s < 60) return `em ${Math.ceil(s)} s`;
+  if (s < 3600) return `em ${Math.ceil(s / 60)} min`;
+  const minutos = Math.ceil(s / 60);
+  return `em ${Math.floor(minutos / 60)} h ${minutos % 60} min`;
+}
+
+function nomeIntervalo(s) {
+  const [valor, unidade] = s < 60 ? [s, 'segundo'] : s < 3600 ? [s / 60, 'minuto'] : [s / 3600, 'hora'];
+  return `${valor} ${unidade}${valor > 1 ? 's' : ''}`;
+}
+
+function intervaloCurto(s) {
+  return s < 60 ? `${s} s` : `${Math.round(s / 60)} min`;
+}
+
+function nomeRota(hops) {
+  if (hops == null) return '—';
+  if (hops < 0) return 'Flood';
+  if (hops === 0) return 'Direta';
+  return hops === 1 ? '1 hop' : `${hops} hops`;
+}
+
+const SITUACOES = {
+  ok: ['Com posição', 'estado-ok'],
+  sem_gps: ['Respondeu sem GPS', 'estado-alerta'],
+  sem_resposta: ['Sem resposta', 'estado-falha'],
+  sem_contato: ['Não está no rádio', 'estado-falha'],
+};
+
+function situacao(item) {
+  const [texto, classe] = SITUACOES[item.status] || ['Aguardando', 'suave'];
+  return el('span', { className: classe, textContent: texto });
+}
+
+// O node pode responder sem GPS: a posicao conhecida e mantida e fica marcada como antiga.
+function posicaoAntiga(item) {
+  const limite = Math.max(item.intervalo_real_s * 2.5, 120);
+  return !item.ativo || Date.now() / 1000 - item.posicao_em > limite || item.status !== 'ok';
+}
+
+const NOMES_LEITURA = {
+  voltage: ['Bateria', ' V'], temperature: ['Temperatura', ' °C'], humidity: ['Umidade', ' %'],
+  barometer: ['Pressão', ' hPa'], illuminance: ['Luminosidade', ' lux'], percentage: ['Nível', ' %'],
+};
+
+function leituras(item) {
+  return item.telemetria
+    .filter(l => NOMES_LEITURA[l.type] && typeof l.value === 'number')
+    .map(l => `${NOMES_LEITURA[l.type][0]}: ${l.value}${NOMES_LEITURA[l.type][1]}`);
+}
+
+// ---- Mapa ----
+const mapa = L.map('mapa').setView([-15.8, -47.9], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+}).addTo(mapa);
+
+const marcadores = new Map();
+let mapaEnquadrado = false;
+
+const CORES = ['#d32f2f', '#1565c0', '#ef6c00', '#6a1b9a', '#00838f', '#c2185b',
+               '#2e7d32', '#5d4037', '#283593', '#9e9d24', '#00acc1', '#37474f'];
+
+function corDe(item) {
+  return CORES[item.cor % CORES.length];
+}
+
+function iconeAmbulancia(cor) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="28" viewBox="0 0 42 28">
+    <rect x="11" y="1" width="6" height="3" rx="1" fill="#ffffff" stroke="#000" stroke-width=".8"/>
+    <path d="M2 5a1.5 1.5 0 0 1 1.5-1.5H27v18H2z" fill="${cor}" stroke="#ffffff" stroke-width="1.4"/>
+    <path d="M27 8.5h6.5l6 7v6H27z" fill="${cor}" stroke="#ffffff" stroke-width="1.4"/>
+    <path d="M30 11h2.6l3.6 4.5H30z" fill="#dff3ff"/>
+    <rect x="12.5" y="6.5" width="4" height="12" fill="#ffffff"/>
+    <rect x="8.5" y="10.5" width="12" height="4" fill="#ffffff"/>
+    <circle cx="9.5" cy="22.5" r="3.8" fill="#1c2430" stroke="#ffffff" stroke-width="1.2"/>
+    <circle cx="32" cy="22.5" r="3.8" fill="#1c2430" stroke="#ffffff" stroke-width="1.2"/>
+  </svg>`;
+  return L.divIcon({ className: 'icone-veiculo', html: svg, iconSize: [42, 28], iconAnchor: [21, 14], popupAnchor: [0, -14] });
+}
+
+function popup(item) {
+  const caixa = el('div', {},
+    el('strong', { textContent: item.nome }),
+    el('div', { textContent: `Posição ${tempoAtras(item.posicao_em)}` }),
+    el('div', { textContent: `${item.lat}, ${item.lon}` }));
+  if (item.alt != null) caixa.append(el('div', { textContent: `Altitude: ${item.alt} m` }));
+  for (const linha of leituras(item)) caixa.append(el('div', { textContent: linha }));
+  return caixa;
+}
+
+function desenharMapa(rastreados) {
+  const comPosicao = rastreados.filter(i => i.posicao_em);
+  const chaves = new Set(comPosicao.map(i => i.chave));
+  for (const [chave, marcador] of marcadores) {
+    if (!chaves.has(chave)) { marcador.remove(); marcadores.delete(chave); }
+  }
+  for (const item of comPosicao) {
+    let marcador = marcadores.get(item.chave);
+    if (!marcador) {
+      marcador = L.marker([item.lat, item.lon], { icon: iconeAmbulancia(corDe(item)) }).addTo(mapa);
+      marcador.bindTooltip(el('span', { textContent: item.nome }),
+        { direction: 'top', offset: [0, -10], className: 'rotulo-mapa' });
+      marcadores.set(item.chave, marcador);
+    }
+    marcador.setLatLng([item.lat, item.lon]);
+    marcador.setOpacity(posicaoAntiga(item) ? .45 : 1);
+    // Atualiza o conteudo sem recriar, para nao fechar um popup aberto a cada atualizacao.
+    if (marcador.getPopup()) marcador.setPopupContent(popup(item));
+    else marcador.bindPopup(popup(item));
+  }
+  // Com a tela oculta o mapa nao tem tamanho: enquadra quando ele voltar a aparecer.
+  if (!mapaEnquadrado && comPosicao.length && !$('tela-mapa').hidden) {
+    mapa.fitBounds(L.latLngBounds(comPosicao.map(i => [i.lat, i.lon])), { padding: [80, 160], maxZoom: 17 });
+    mapaEnquadrado = true;
+  }
+
+  const lateral = $('lateral');
+  lateral.replaceChildren(...rastreados.map(item => {
+    const amostra = el('span', { className: 'amostra' });
+    amostra.style.background = corDe(item);
+    const b = el('button', { className: 'dispositivo' },
+      el('strong', {}, amostra, item.nome),
+      situacao(item),
+      el('div', { className: 'suave', textContent: `Posição: ${tempoAtras(item.posicao_em)}` }),
+      el('div', { className: 'suave', textContent: leituras(item).filter(l => l.startsWith('Bateria')).join('') }));
+    b.disabled = !item.posicao_em;
+    b.onclick = () => {
+      mapa.setView([item.lat, item.lon], Math.max(mapa.getZoom(), 13));
+      marcadores.get(item.chave)?.openPopup();
+    };
+    return b;
+  }));
+  if (!rastreados.length) {
+    lateral.append(el('p', { className: 'suave', style: 'padding:14px', textContent: 'Escolha os contatos na aba Automação.' }));
+  }
+}
+
+// ---- Automacao ----
+let contatos = [];
+let rastreadosAtuais = [];
+
+function desenharTabela(rastreados, intervalos) {
+  const tabela = $('tabela');
+  $('sem-rastreados').hidden = rastreados.length > 0;
+  // Redesenhar fecharia a lista de intervalos enquanto o usuario escolhe.
+  if (tabela.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;
+
+  tabela.replaceChildren(...rastreados.map(item => {
+    const caminho = `/api/rastreados/${encodeURIComponent(item.chave)}`;
+    const ligado = el('input', { type: 'checkbox', checked: item.ativo, ariaLabel: `Ligar ${item.nome}` });
+    ligado.style.minHeight = 'auto';
+    ligado.onchange = () => acao(() => api(caminho, 'PATCH', { ativo: ligado.checked }));
+
+    const intervalo = el('select', { ariaLabel: `Intervalo de ${item.nome}` },
+      ...intervalos.map(s => el('option', { value: s, textContent: nomeIntervalo(s) })));
+    intervalo.value = item.intervalo_s;
+    intervalo.onchange = () => {
+      intervalo.blur();
+      acao(() => api(caminho, 'PATCH', { intervalo_s: Number(intervalo.value) }));
+    };
+
+    const pedir = el('button', { textContent: 'Pedir agora', onclick: () => acao(() => api(`${caminho}/pedir`, 'POST')) });
+    pedir.disabled = !item.ativo;
+    const remover = el('button', { textContent: 'Remover', onclick: () => acao(() => api(caminho, 'DELETE')) });
+
+    const celulaIntervalo = el('td', {}, intervalo);
+    if (item.intervalo_real_s > item.intervalo_s) {
+      celulaIntervalo.append(el('span', {
+        className: 'detalhe alerta',
+        textContent: `Real: ${intervaloCurto(item.intervalo_real_s)} (rota lenta)`,
+      }));
+    }
+    const celulaResposta = el('td', { textContent: tempoAtras(item.resposta_em) });
+    if (item.resposta_em && item.rtt_ultimo != null) {
+      celulaResposta.append(el('span', {
+        className: 'detalhe',
+        textContent: `levou ${item.rtt_ultimo.toFixed(1).replace('.', ',')} s`,
+      }));
+    }
+
+    return el('tr', {},
+      el('td', { className: 'nome', textContent: item.nome }),
+      el('td', {}, ligado),
+      celulaIntervalo,
+      el('td', { textContent: nomeRota(item.hops) }),
+      el('td', {}, situacao(item)),
+      celulaResposta,
+      el('td', { textContent: tempoAte(item) }),
+      el('td', { className: 'acoes' }, pedir, ' ', remover));
+  }));
+}
+
+function desenharContatos() {
+  const termo = $('busca').value.trim().toLocaleLowerCase('pt-BR');
+  const usados = new Set(rastreadosAtuais.map(i => i.chave));
+  const visiveis = contatos
+    .filter(c => !usados.has(c.chave))
+    .filter(c => (termo ? c.nome.toLocaleLowerCase('pt-BR').includes(termo) : c.tipo === 'companion'))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const lista = $('lista-contatos');
+  lista.replaceChildren(...visiveis.map(c => el('div', { className: 'contato' },
+    el('span', { textContent: c.nome }),
+    el('code', { textContent: c.chave.slice(0, 8) }),
+    el('span', { className: 'suave', textContent: c.tipo }),
+    el('button', { textContent: 'Adicionar', onclick: () => acao(() => api('/api/rastreados', 'POST', { chave: c.chave })) }))));
+  if (!visiveis.length) {
+    const texto = contatos.length ? 'Nenhum contato encontrado.' : 'Conecte o rádio para ver os contatos.';
+    lista.append(el('p', { className: 'suave', textContent: texto }));
+  }
+}
+
+// ---- Conexao ----
+let ultimoConectado = null;
+let programaEncerrado = false;
+let conectando = false;
+let estadoAtual = null;
+
+async function carregarPortas() {
+  const atual = $('portas').value;
+  const portas = await api('/api/portas');
+  $('portas').replaceChildren(...portas.map(p => el('option', {
+    value: p.porta,
+    textContent: p.descricao ? `${p.descricao} (${p.porta})` : p.porta,
+  })));
+  if (!portas.length) $('portas').append(el('option', { value: '', textContent: 'Nenhuma porta encontrada' }));
+  if (portas.some(p => p.porta === atual)) $('portas').value = atual;
+  return portas;
+}
+
+function desenharConexao(estado) {
+  estadoAtual = estado;
+  $('versao').textContent = `Versão ${estado.versao}`;
+  const conectado = estado.conectado;
+  const reconectando = !conectado && Boolean(estado.porta);
+  const textoStatus = conectado ? 'Conectado' : reconectando ? 'Reconectando...' : 'Desconectado';
+  const sinal = () => el('span', { className: conectado ? 'sinal ligado' : 'sinal' });
+  $('situacao').replaceChildren(sinal(), textoStatus);
+  $('status-conexao').replaceChildren(sinal(), textoStatus);
+  $('conectar').disabled = conectando || conectado || reconectando;
+  $('desconectar').disabled = conectando || !(conectado || reconectando);
+  $('portas').disabled = conectando || conectado || reconectando;
+  $('atualizar-portas').disabled = conectando || conectado || reconectando;
+  if (estado.porta && [...$('portas').options].some(o => o.value === estado.porta)) $('portas').value = estado.porta;
+  $('erro-conexao').textContent = estado.erro || '';
+  $('erro-conexao').hidden = !estado.erro;
+  atualizarCronometro();
+}
+
+function atualizarCronometro() {
+  if (!estadoAtual) return;
+  const total = Math.max(0, Math.floor(Date.now() / 1000 - estadoAtual.estado_desde));
+  const doisDigitos = n => String(n).padStart(2, '0');
+  const relogio = [Math.floor(total / 3600) % 24, Math.floor(total / 60) % 60, total % 60].map(doisDigitos).join(':');
+  const dias = Math.floor(total / 86400);
+  $('rotulo-tempo').textContent = estadoAtual.conectado ? 'Tempo conectado' : 'Tempo desconectado';
+  $('cronometro').textContent = dias ? `${dias} d ${relogio}` : relogio;
+}
+
+async function atualizar() {
+  try {
+    const estado = await api('/api/estado');
+    rastreadosAtuais = estado.rastreados;
+    desenharConexao(estado);
+    desenharMapa(estado.rastreados);
+    desenharTabela(estado.rastreados, estado.intervalos);
+    if (estado.conectado !== ultimoConectado) {
+      ultimoConectado = estado.conectado;
+      contatos = await api('/api/contatos');
+    }
+    desenharContatos();
+  } catch (e) {
+    avisar(programaEncerrado
+      ? 'O Meshcore Tracker foi encerrado. Pode fechar esta aba.'
+      : 'Sem comunicação com o programa. Ele ainda está aberto?');
+  }
+}
+
+async function mudarConexao(fn) {
+  conectando = true;
+  $('conectar').disabled = true;
+  $('desconectar').disabled = true;
+  await acao(fn);
+  conectando = false;
+  await atualizar();
+}
+$('conectar').onclick = () => mudarConexao(() => api('/api/conectar', 'POST', { porta: $('portas').value }));
+$('desconectar').onclick = () => mudarConexao(() => api('/api/desconectar', 'POST'));
+$('atualizar-portas').onclick = () => acao(carregarPortas);
+$('atualizar-contatos').onclick = () => acao(async () => {
+  await api('/api/contatos/atualizar', 'POST');
+  contatos = await api('/api/contatos');
+});
+$('busca').oninput = desenharContatos;
+
+function abrirTela(nome) {
+  for (const n of ['mapa', 'automacao', 'conexao']) $(`tela-${n}`).hidden = n !== nome;
+  fecharMenu();
+  if (nome === 'mapa') {
+    mapa.invalidateSize();
+    desenharMapa(rastreadosAtuais);
+  }
+}
+
+function fecharMenu() {
+  $('menu').hidden = true;
+  $('engrenagem').setAttribute('aria-expanded', 'false');
+}
+
+$('engrenagem').onclick = evento => {
+  evento.stopPropagation();
+  $('menu').hidden = !$('menu').hidden;
+  $('engrenagem').setAttribute('aria-expanded', String(!$('menu').hidden));
+};
+document.addEventListener('click', fecharMenu);
+document.addEventListener('keydown', evento => {
+  if (evento.key === 'Escape') fecharMenu();
+});
+$('menu-automacao').onclick = () => abrirTela('automacao');
+$('menu-conexao').onclick = () => abrirTela('conexao');
+$('menu-sair').onclick = async () => {
+  if (!confirm('Encerrar o Meshcore Tracker? Os pedidos de telemetria vão parar.')) return;
+  programaEncerrado = true;
+  try { await api('/api/encerrar', 'POST'); } catch {}
+  avisar('O Meshcore Tracker foi encerrado. Pode fechar esta aba.');
+};
+for (const botao of document.querySelectorAll('.voltar-mapa')) botao.onclick = () => abrirTela('mapa');
+
+carregarPortas().then(atualizar);
+setInterval(atualizar, 5000);
+setInterval(atualizarCronometro, 1000);
+</script>
+</body>
+</html>
