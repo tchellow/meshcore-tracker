@@ -143,16 +143,24 @@
       <dl class="dados-conexao">
         <dt>Status</dt>
         <dd id="status-conexao"></dd>
-        <dt>Porta</dt>
-        <dd><select id="portas" aria-label="Porta USB"></select></dd>
+        <dt>Tipo</dt>
+        <dd>
+          <select id="tipo-conexao" aria-label="Tipo de conexão">
+            <option value="usb">USB</option>
+            <option value="ble">Bluetooth</option>
+          </select>
+        </dd>
+        <dt id="rotulo-porta">Porta</dt>
+        <dd><select id="portas" aria-label="Porta ou rádio"></select></dd>
         <dt id="rotulo-tempo">Tempo desconectado</dt>
         <dd id="cronometro">00:00:00</dd>
       </dl>
+      <p id="dica-bluetooth" class="suave" hidden>O rádio precisa estar com o firmware Companion Bluetooth, pareado nas configurações de Bluetooth deste computador e sem outro aparelho conectado a ele, como o celular.</p>
       <p id="erro-conexao" role="alert" hidden></p>
       <div class="botoes">
         <button id="conectar">Conectar</button>
         <button id="desconectar">Desconectar</button>
-        <button id="atualizar-portas" title="Procurar portas USB">Procurar</button>
+        <button id="atualizar-portas">Procurar</button>
       </div>
     </div>
   </section>
@@ -446,21 +454,68 @@ function desenharContatos() {
 }
 
 // ---- Conexao ----
+const PREFIXO_BLUETOOTH = 'ble:';
+let portasUsb = [];
+let radiosBluetooth = [];
+let procurando = false;
 let ultimoConectado = null;
 let programaEncerrado = false;
 let conectando = false;
 let estadoAtual = null;
 
 async function carregarPortas() {
+  portasUsb = await api('/api/portas');
+  desenharListaConexao();
+}
+
+async function procurarBluetooth() {
+  procurando = true;
+  desenharListaConexao();
+  if (estadoAtual) desenharConexao(estadoAtual);
+  try {
+    radiosBluetooth = await api('/api/bluetooth/procurar', 'POST');
+  } finally {
+    procurando = false;
+    desenharListaConexao();
+    if (estadoAtual) desenharConexao(estadoAtual);
+  }
+}
+
+function opcoesConexao() {
+  if ($('tipo-conexao').value === 'usb') {
+    return portasUsb.map(p => ({
+      valor: p.porta,
+      texto: p.descricao ? `${p.descricao} (${p.porta})` : p.porta,
+    }));
+  }
+  const opcoes = radiosBluetooth.map(r => ({
+    valor: PREFIXO_BLUETOOTH + r.endereco,
+    nome: r.nome,
+    texto: `${r.nome} (${r.endereco}, ${r.rssi} dBm)`,
+  }));
+  // Um radio conectado para de anunciar, mas precisa continuar na lista.
+  const porta = estadoAtual?.porta;
+  if (porta?.startsWith(PREFIXO_BLUETOOTH) && !opcoes.some(o => o.valor === porta)) {
+    const endereco = porta.slice(PREFIXO_BLUETOOTH.length);
+    const nome = estadoAtual.nome_radio;
+    opcoes.unshift({ valor: porta, nome, texto: nome ? `${nome} (${endereco})` : endereco });
+  }
+  return opcoes;
+}
+
+function desenharListaConexao() {
+  const bluetooth = $('tipo-conexao').value === 'ble';
   const atual = $('portas').value;
-  const portas = await api('/api/portas');
-  $('portas').replaceChildren(...portas.map(p => el('option', {
-    value: p.porta,
-    textContent: p.descricao ? `${p.descricao} (${p.porta})` : p.porta,
-  })));
-  if (!portas.length) $('portas').append(el('option', { value: '', textContent: 'Nenhuma porta encontrada' }));
-  if (portas.some(p => p.porta === atual)) $('portas').value = atual;
-  return portas;
+  const opcoes = opcoesConexao();
+  $('rotulo-porta').textContent = bluetooth ? 'Rádio' : 'Porta';
+  $('dica-bluetooth').hidden = !bluetooth;
+  $('portas').replaceChildren(...opcoes.map(o => el('option', { value: o.valor, textContent: o.texto })));
+  if (!opcoes.length) {
+    const texto = !bluetooth ? 'Nenhuma porta encontrada'
+      : procurando ? 'Procurando rádios...' : 'Nenhum rádio encontrado';
+    $('portas').append(el('option', { value: '', textContent: texto }));
+  }
+  if (opcoes.some(o => o.valor === atual)) $('portas').value = atual;
 }
 
 function desenharConexao(estado) {
@@ -472,11 +527,18 @@ function desenharConexao(estado) {
   const sinal = () => el('span', { className: conectado ? 'sinal ligado' : 'sinal' });
   $('situacao').replaceChildren(sinal(), textoStatus);
   $('status-conexao').replaceChildren(sinal(), textoStatus);
-  $('conectar').disabled = conectando || conectado || reconectando;
+  const ocupado = conectando || conectado || reconectando;
+  $('conectar').disabled = ocupado || procurando;
   $('desconectar').disabled = conectando || !(conectado || reconectando);
-  $('portas').disabled = conectando || conectado || reconectando;
-  $('atualizar-portas').disabled = conectando || conectado || reconectando;
-  if (estado.porta && [...$('portas').options].some(o => o.value === estado.porta)) $('portas').value = estado.porta;
+  $('tipo-conexao').disabled = ocupado || procurando;
+  $('portas').disabled = ocupado || procurando;
+  $('atualizar-portas').disabled = ocupado || procurando;
+  $('atualizar-portas').textContent = procurando ? 'Procurando...' : 'Procurar';
+  if (estado.porta) {
+    $('tipo-conexao').value = estado.porta.startsWith(PREFIXO_BLUETOOTH) ? 'ble' : 'usb';
+    desenharListaConexao();
+    if ([...$('portas').options].some(o => o.value === estado.porta)) $('portas').value = estado.porta;
+  }
   $('erro-conexao').textContent = estado.erro || '';
   $('erro-conexao').hidden = !estado.erro;
   atualizarCronometro();
@@ -519,9 +581,18 @@ async function mudarConexao(fn) {
   conectando = false;
   await atualizar();
 }
-$('conectar').onclick = () => mudarConexao(() => api('/api/conectar', 'POST', { porta: $('portas').value }));
+$('conectar').onclick = () => {
+  const porta = $('portas').value;
+  const nome = opcoesConexao().find(o => o.valor === porta)?.nome;
+  mudarConexao(() => api('/api/conectar', 'POST', { porta, nome }));
+};
 $('desconectar').onclick = () => mudarConexao(() => api('/api/desconectar', 'POST'));
-$('atualizar-portas').onclick = () => acao(carregarPortas);
+$('atualizar-portas').onclick = () => acao($('tipo-conexao').value === 'ble' ? procurarBluetooth : carregarPortas);
+$('tipo-conexao').onchange = () => {
+  desenharListaConexao();
+  // Na primeira vez em Bluetooth, ja procura sem precisar de outro clique.
+  if ($('tipo-conexao').value === 'ble' && !radiosBluetooth.length) acao(procurarBluetooth);
+};
 $('atualizar-contatos').onclick = () => acao(async () => {
   await api('/api/contatos/atualizar', 'POST');
   contatos = await api('/api/contatos');

@@ -1,5 +1,6 @@
 meshcore>=2.3.17,<3
 pyserial>=3.5,<4
+bleak>=3,<4
 starlette>=1,<2
 uvicorn>=0.54,<1
 pywebview>=6.2,<7

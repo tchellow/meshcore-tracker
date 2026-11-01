@@ -20,13 +20,15 @@ mkdir -p "$PACOTE/DEBIAN" \
          "$PACOTE/usr/share/doc/meshcore-tracker" \
          "$SAIDA"
 
-cp "$RAIZ"/{app,automacao,banco,janela,portas,radio,versao}.py "$APP/"
+cp "$RAIZ"/{app,automacao,banco,bluetooth,janela,portas,radio,versao}.py "$APP/"
 cp -r "$RAIZ/static" "$APP/static"
 cp "$RAIZ/assets/icone-256.png" "$APP/assets/"
 
 python3 -m pip install --quiet --disable-pip-version-check --target "$APP/lib" -r "$RAIZ/requirements.txt"
-# O programa so usa USB. A biblioteca meshcore trata o Bluetooth como opcional.
-rm -rf "$APP/lib/bleak" "$APP/lib/bleak-"* "$APP/lib/dbus_fast" "$APP/lib/dbus_fast-"* "$APP/lib/bin"
+rm -rf "$APP/lib/bin"
+# Extensoes compiladas valem so para o Python da compilacao. O dbus_fast tambem funciona
+# sem elas, e remove-las evita qualquer diferenca entre as versoes do Ubuntu.
+find "$APP/lib/dbus_fast" -type f \( -name '*.so' -o -name '*.pyd' \) -delete
 find "$APP/lib" -type d -name __pycache__ -prune -exec rm -rf {} +
 
 cat > "$PACOTE/usr/bin/meshcore-tracker" <<'FIM'
@@ -66,6 +68,7 @@ Section: hamradio
 Priority: optional
 Architecture: amd64
 Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, xdg-utils
+Recommends: bluez
 Installed-Size: $TAMANHO
 Maintainer: tchellow <tchellow@users.noreply.github.com>
 Homepage: https://github.com/tchellow/meshcore-tracker

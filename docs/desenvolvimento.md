@@ -7,7 +7,8 @@
 | `app.py` | Servidor web, rotas e início do programa |
 | `janela.py` | Janela própria, com pywebview |
 | `automacao.py` | Laço da automação e cálculos de tempo |
-| `radio.py` | Conexão com o rádio pela biblioteca `meshcore` |
+| `radio.py` | Conexão com o rádio, por USB ou Bluetooth, pela biblioteca `meshcore` |
+| `bluetooth.py` | Procura rádios por Bluetooth |
 | `portas.py` | Lista as portas seriais com o nome USB |
 | `banco.py` | Banco SQLite e migrações |
 | `versao.py` | Versão do programa |

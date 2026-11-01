@@ -27,8 +27,8 @@ def main():
         "--collect-submodules=meshcore",
         "--collect-submodules=cayennelpp",
         "--collect-submodules=uvicorn",
-        # O programa so usa USB. A biblioteca trata o Bluetooth como opcional.
-        "--exclude-module=bleak",
+        "--collect-submodules=bleak",
+        "--collect-submodules=winrt",
     ]
     argumentos.append(f"--icon={RAIZ / 'assets' / 'icone.ico'}")
     PyInstaller.__main__.run(argumentos + sys.argv[1:])

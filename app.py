@@ -24,9 +24,10 @@ from starlette.staticfiles import StaticFiles
 
 import automacao
 from banco import INTERVALOS_S, Banco, pasta_dados
+from bluetooth import NOME_DESCONHECIDO, procurar_radios
 from janela import Janela
 from portas import listar_portas
-from radio import TIPOS_CONTATO, Radio, RadioErro
+from radio import TIPOS_CONTATO, Radio, RadioErro, endereco_bluetooth
 from versao import VERSAO
 
 logger = logging.getLogger("tracker")
@@ -75,6 +76,7 @@ def criar_app(banco, encerrar, mostrar_janela):
             "versao": VERSAO,
             "conectado": radio.conectado,
             "porta": radio.porta,
+            "nome_radio": banco.config("nome_radio"),
             "erro": radio.erro,
             "estado_desde": radio.estado_desde(),
             "intervalos": INTERVALOS_S,
@@ -84,20 +86,44 @@ def criar_app(banco, encerrar, mostrar_janela):
     async def portas(request):
         return JSONResponse(listar_portas())
 
+    def nomes_bluetooth():
+        return json.loads(banco.config("nomes_bluetooth") or "{}")
+
+    async def procurar_bluetooth(request):
+        try:
+            radios = await procurar_radios()
+        except RadioErro as falha:
+            return erro(str(falha))
+        # Alguns radios anunciam sem nome: usa o nome informado na ultima conexao.
+        nomes = nomes_bluetooth()
+        for item in radios:
+            if item["nome"] == NOME_DESCONHECIDO:
+                item["nome"] = nomes.get(item["endereco"], NOME_DESCONHECIDO)
+        return JSONResponse(radios)
+
     async def conectar(request):
-        porta = (await corpo(request)).get("porta")
+        dados = await corpo(request)
+        porta = dados.get("porta")
         if not porta or not isinstance(porta, str):
-            return erro("Escolha uma porta.")
+            return erro("Escolha uma porta ou um rádio.")
+        nome = dados.get("nome")
         try:
             await radio.conectar(porta)
         except RadioErro as falha:
             return erro(str(falha))
+        endereco = endereco_bluetooth(porta)
+        if endereco:
+            nome = radio.nome_informado() or nome
+            if nome and nome != NOME_DESCONHECIDO:
+                banco.salvar_config("nomes_bluetooth", json.dumps({**nomes_bluetooth(), endereco: nome}, ensure_ascii=False))
         banco.salvar_config("porta", porta)
+        banco.salvar_config("nome_radio", nome if isinstance(nome, str) else None)
         return JSONResponse({"ok": True})
 
     async def desconectar(request):
         await radio.desconectar()
         banco.salvar_config("porta", None)
+        banco.salvar_config("nome_radio", None)
         return JSONResponse({"ok": True})
 
     async def contatos(request):
@@ -168,6 +194,7 @@ def criar_app(banco, encerrar, mostrar_janela):
             Route("/", pagina),
             Route("/api/estado", estado),
             Route("/api/portas", portas),
+            Route("/api/bluetooth/procurar", procurar_bluetooth, methods=["POST"]),
             Route("/api/conectar", conectar, methods=["POST"]),
             Route("/api/desconectar", desconectar, methods=["POST"]),
             Route("/api/contatos", contatos),

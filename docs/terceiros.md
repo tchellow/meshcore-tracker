@@ -7,6 +7,7 @@ Cada componente mantém a própria licença. Confira a licença de cada projeto 
 | [meshcore](https://github.com/meshcore-dev/meshcore_py) | Comunicação com o rádio | MIT |
 | [pyserial](https://github.com/pyserial/pyserial) | Porta serial | BSD-3-Clause |
 | [pyserial-asyncio-fast](https://github.com/home-assistant-libs/pyserial-asyncio-fast) | Porta serial assíncrona | BSD-3-Clause |
+| [Bleak](https://github.com/hbldh/bleak) | Conexão Bluetooth | MIT |
 | [pycayennelpp](https://github.com/smlng/pycayennelpp) | Decodificação da telemetria | MIT |
 | [PyCryptodome](https://github.com/Legrandin/pycryptodome) | Dependência da biblioteca meshcore | BSD-2-Clause, Unlicense e MIT |
 | [Starlette](https://github.com/encode/starlette) | Servidor web | BSD-3-Clause |

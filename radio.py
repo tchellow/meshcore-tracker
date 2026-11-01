@@ -1,16 +1,28 @@
-"""Conexao USB com o companion. Um unico comando usa o radio por vez."""
+"""Conexao com o companion, por USB ou Bluetooth. Um unico comando usa o radio por vez."""
 
 import asyncio
+import logging
 import time
 
 from meshcore import EventType, MeshCore
 
+logger = logging.getLogger("tracker")
+
 TIPOS_CONTATO = {1: "companion", 2: "repeater", 3: "room", 4: "sensor"}
 ESPERA_MAXIMA_S = 60
+PREFIXO_BLUETOOTH = "ble:"
+ESPERA_CONEXAO_BLUETOOTH_S = 20
+TENTATIVAS_BLUETOOTH = 3
+PAUSA_TENTATIVAS_BLUETOOTH_S = 3
 
 
 class RadioErro(Exception):
     pass
+
+
+def endereco_bluetooth(destino):
+    """Retorna o endereco se o destino for Bluetooth, ou None se for uma porta USB."""
+    return destino[len(PREFIXO_BLUETOOTH):] if destino.startswith(PREFIXO_BLUETOOTH) else None
 
 
 class Radio:
@@ -34,26 +46,57 @@ class Radio:
             self._estado_desde = time.time()
         return self._estado_desde
 
-    async def conectar(self, porta):
+    def nome_informado(self):
+        """Nome que o proprio radio informa ao conectar, no formato anunciado por Bluetooth."""
+        nome = (self.mc.self_info or {}).get("name") if self.mc else None
+        return f"MeshCore-{nome}" if nome else None
+
+    async def conectar(self, destino):
+        """O destino e uma porta USB ou PREFIXO_BLUETOOTH mais o endereco do radio."""
         async with self._trava:
             await self._fechar()
+            endereco = endereco_bluetooth(destino)
             try:
-                mc = await MeshCore.create_serial(porta, 115200)
-            except PermissionError:
-                # A biblioteca reabre a porta quando o node nao responde, e essa
-                # reabertura tambem da "Acesso negado".
-                self.erro = "Acesso negado: a porta esta ocupada ou o radio nao tem o firmware Companion USB."
-                raise RadioErro(self.erro) from None
-            except Exception as erro:
-                self.erro = f"Nao foi possivel abrir {porta}: {erro}"
-                raise RadioErro(self.erro) from None
-            if mc is None:
-                self.erro = "O radio nao respondeu. Ele esta com o firmware Companion USB?"
-                raise RadioErro(self.erro)
-            self.mc = mc
-            self.porta = porta
+                self.mc = await (self._abrir_bluetooth(endereco) if endereco else self._abrir_usb(destino))
+                await self._ler_contatos()
+            except RadioErro as falha:
+                # Sem os contatos a conexao nao serve: nao fica aberta pela metade.
+                await self._fechar()
+                self.erro = str(falha)
+                raise
+            self.porta = destino
             self.erro = None
-            await self._ler_contatos()
+
+    async def _abrir_usb(self, porta):
+        try:
+            mc = await MeshCore.create_serial(porta, 115200)
+        except PermissionError:
+            # A biblioteca reabre a porta quando o node nao responde, e essa
+            # reabertura tambem da "Acesso negado".
+            raise RadioErro("Acesso negado: a porta está ocupada ou o rádio não tem o firmware Companion USB.") from None
+        except Exception as falha:
+            raise RadioErro(f"Não foi possível abrir {porta}: {falha}") from None
+        if mc is None:
+            raise RadioErro("O rádio não respondeu. Ele está com o firmware Companion USB?")
+        return mc
+
+    async def _abrir_bluetooth(self, endereco):
+        aviso = (
+            "Não foi possível conectar por Bluetooth. Confira se o rádio está ligado, com o firmware "
+            "Companion Bluetooth, pareado neste computador e sem outro aparelho conectado a ele."
+        )
+        # Logo apos conectar, o enlace pode ainda nao estar criptografado, e a tentativa falha.
+        for tentativa in range(1, TENTATIVAS_BLUETOOTH + 1):
+            try:
+                mc = await asyncio.wait_for(MeshCore.create_ble(address=endereco), ESPERA_CONEXAO_BLUETOOTH_S)
+                if mc is not None:
+                    return mc
+                logger.warning("Bluetooth, tentativa %d: o radio nao respondeu", tentativa)
+            except Exception as falha:
+                logger.warning("Bluetooth, tentativa %d: %r", tentativa, falha)
+            if tentativa < TENTATIVAS_BLUETOOTH:
+                await asyncio.sleep(PAUSA_TENTATIVAS_BLUETOOTH_S)
+        raise RadioErro(aviso)
 
     async def desconectar(self):
         async with self._trava:

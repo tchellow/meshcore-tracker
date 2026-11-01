@@ -22,6 +22,21 @@ Causas mais comuns:
 - Se o erro continuar, rode `sudo usermod -aG dialout $USER`, saia e entre na sessão.
 - O serviço ModemManager pode ocupar a porta por alguns segundos ao ligar o rádio. Se isso se repetir, teste com `sudo systemctl stop ModemManager`.
 
+### A conexão Bluetooth falha ou cai
+
+- **Pareamento:** pareie o rádio nas configurações de Bluetooth do sistema. Se não funcionar, remova o pareamento antigo e faça de novo.
+- **Outro aparelho conectado:** desconecte o celular e o MeshCore Web App. O rádio só aceita uma conexão.
+- **Firmware:** confira se é o **Companion Bluetooth**.
+- **Sinal:** aproxime o rádio do computador. Wi-Fi e outros aparelhos Bluetooth podem interferir.
+- **Falhas em sequência:** aguarde um pouco. O programa tenta reconectar sozinho a cada 15 segundos enquanto o rádio estiver salvo, e cada rodada pode levar até cerca de 1 minuto. Se persistir, desligue e ligue o rádio ou o Bluetooth do computador.
+- **Uso contínuo:** se a instabilidade continuar, prefira a conexão USB.
+
+### O rádio não aparece na lista de Bluetooth
+
+Um rádio conectado a outro aparelho não anuncia. Desconecte-o, espere alguns segundos e clique em **Procurar**.
+
+No Ubuntu, confira se o Bluetooth está ligado e se o pacote `bluez` está instalado.
+
 ## Automação
 
 ### “Sem resposta”

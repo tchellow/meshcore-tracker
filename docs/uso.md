@@ -4,7 +4,7 @@ As imagens usam contatos e posições fictícios.
 
 ## Antes de começar
 
-- Grave o firmware **Companion USB** no rádio ligado ao computador.
+- Grave no rádio o firmware **Companion USB** ou **Companion Bluetooth**, conforme a conexão que vai usar.
 - Nos nodes rastreados, autorize o envio de telemetria e localização a este rádio. O contato precisa estar na lista do rádio.
 - Feche outros programas que usem a porta, como o MeshCore Web App. Só um programa usa a porta por vez.
 
@@ -24,8 +24,25 @@ Se o sistema não tiver o motor da janela, o programa abre no navegador, em `htt
 
 ![Tela de Conexão](imagens/conexao.png)
 
-1. Ligue o rádio e clique em **Procurar** se ele não aparecer na lista.
-2. Escolha a porta e clique em **Conectar**.
+### Por USB
+
+1. Em **Tipo**, escolha **USB**. O rádio precisa estar com o firmware **Companion USB**.
+2. Ligue o rádio e clique em **Procurar** se ele não aparecer na lista.
+3. Escolha a porta e clique em **Conectar**.
+
+### Por Bluetooth
+
+1. Grave o firmware **Companion Bluetooth** no rádio.
+2. Pareie o rádio nas configurações de Bluetooth do sistema, usando o PIN dele. Em rádios sem tela, o padrão costuma ser `123456`.
+3. Desconecte o rádio do celular ou de outro aparelho. Ele só aceita uma conexão por vez, e deixa de anunciar enquanto estiver conectado.
+4. Em **Tipo**, escolha **Bluetooth**. O programa procura os rádios por alguns segundos. Clique em **Procurar** para repetir.
+5. Escolha o rádio e clique em **Conectar**.
+
+Alguns rádios anunciam sem enviar o nome e aparecem como **Rádio sem nome**. Depois da primeira conexão, o programa memoriza o nome.
+
+A qualidade do Bluetooth varia com o computador, a distância e a interferência. Para uso contínuo, prefira o USB. Veja [Solução de problemas](solucao-de-problemas.md#a-conexão-bluetooth-falha-ou-cai).
+
+### Em qualquer tipo
 
 A lista mostra o nome que o dispositivo informa pela USB. Em placas com chip conversor, como CP2102 ou CH340, costuma aparecer o nome do chip, não o do rádio.
 
