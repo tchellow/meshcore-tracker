@@ -10,9 +10,11 @@ As imagens usam contatos e posições fictícios.
 
 ## Abrir e encerrar
 
-O programa abre no navegador, em `http://127.0.0.1:8790`, e só aceita acesso do próprio computador. Se você abri-lo de novo, ele só mostra a tela do que já está rodando.
+O programa abre em janela própria. Se você abri-lo de novo, ele só traz para a frente a janela que já está aberta, sem iniciar outra cópia.
 
-Fechar a aba **não** encerra o programa. Ele continua pedindo telemetria em segundo plano. Para encerrar, clique na engrenagem e em **Sair**.
+**Fechar a janela encerra o programa**, e os pedidos de telemetria param. Você também pode clicar na engrenagem, em **Sair** e em **Confirmar saída**.
+
+Se o sistema não tiver o motor da janela, o programa abre no navegador, em `http://127.0.0.1:8790`. Nesse caso, fechar a aba não o encerra: use **Sair**. Em qualquer modo, ele só aceita acesso do próprio computador.
 
 ## Menu da engrenagem
 

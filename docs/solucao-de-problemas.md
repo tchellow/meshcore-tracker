@@ -57,9 +57,18 @@ O mapa do OpenStreetMap precisa de internet. A automação continua funcionando 
 
 O programa foi encerrado. Abra de novo pelo Menu Iniciar ou pelo menu de aplicativos.
 
-### O navegador não abriu
+### O programa abriu no navegador
 
-Acesse `http://127.0.0.1:8790`. Se outro programa estiver usando essa porta, o Meshcore Tracker não consegue iniciar. Veja o arquivo de registro abaixo.
+O motor da janela não foi encontrado, e o programa continua funcionando no navegador:
+
+- **Windows:** instale o [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
+- **Ubuntu:** rode `sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1`.
+
+Nesse modo, fechar a aba não encerra o programa. Use **Sair** no menu da engrenagem.
+
+### A janela não abre
+
+Se outro programa estiver usando a porta 8790, o Meshcore Tracker não consegue iniciar. Veja o arquivo de registro abaixo.
 
 ## Windows
 

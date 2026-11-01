@@ -16,7 +16,7 @@
 
 ![Mapa com três veículos fictícios, cada um em uma cor](docs/imagens/mapa.png)
 
-Basta ligar um rádio companion na USB, escolher os contatos e o intervalo. O programa roda no próprio computador e usa o navegador como tela.
+Basta ligar um rádio companion na USB, escolher os contatos e o intervalo. O programa roda no próprio computador, em janela própria.
 
 ## Recursos
 
@@ -50,7 +50,7 @@ O instalador não exige Python. Os detalhes, inclusive o aviso do Windows SmartS
 3. Em **Automação**, clique em **Adicionar** nos contatos e escolha o intervalo.
 4. Clique em **Voltar ao mapa**.
 
-Fechar a aba do navegador **não** encerra o programa, que continua pedindo telemetria. Para encerrar, use **Sair** no menu da engrenagem.
+Fechar a janela encerra o programa, e os pedidos de telemetria param.
 
 ## Documentação
 
@@ -67,7 +67,7 @@ Cada pedido transmite pela malha, que é compartilhada, e solicita a localizaç�
 
 ## Situação dos testes
 
-Com rádio real, foi testado no Windows, usando um ProMicro NRF52840 e dois nodes companion a até 1 hop. No Ubuntu, a automação do projeto instala e abre o programa, mas ele ainda **não foi testado com rádio**. Se você testar, abra uma [issue](https://github.com/tchellow/meshcore-tracker/issues) contando o resultado.
+Com rádio real, foi testado no Windows, usando um ProMicro NRF52840 e dois nodes companion a até 1 hop. No Ubuntu 22.04 e 24.04, a automação do projeto instala o pacote e testa a janela, mas o programa ainda **não foi testado com rádio**. Se você testar, abra uma [issue](https://github.com/tchellow/meshcore-tracker/issues) contando o resultado.
 
 ## Licença
 

@@ -10,7 +10,8 @@ export PYTHONDONTWRITEBYTECODE=1
 if [ ! -x "$VENV/bin/python" ]; then
     echo "Preparando o ambiente Python..."
     mkdir -p "$DADOS"
-    if ! python3 -m venv "$VENV"; then
+    # A janela usa o GTK e o WebKit do sistema; sem eles, o programa abre no navegador.
+    if ! python3 -m venv --system-site-packages "$VENV"; then
         echo "Nao foi possivel criar o ambiente. Instale com: sudo apt install python3-venv"
         exit 1
     fi

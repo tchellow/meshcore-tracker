@@ -1,12 +1,14 @@
 # Instalação
 
-Baixe os arquivos na página de [versões](https://github.com/tchellow/meshcore-tracker/releases/latest). O instalador já inclui o Python e as bibliotecas.
+Baixe os arquivos na página de [versões](https://github.com/tchellow/meshcore-tracker/releases/latest). No Windows, o instalador já inclui o Python e as bibliotecas. No Ubuntu, o pacote usa o Python do sistema.
 
 ## Windows 10 ou 11 (64 bits)
 
 1. Baixe `MeshcoreTracker-<versão>-windows-x64-setup.exe`.
 2. Dê dois cliques no arquivo e siga os passos. Não é preciso ser administrador.
 3. Abra o programa pelo Menu Iniciar.
+
+A janela usa o Microsoft Edge WebView2, que já vem no Windows 11 e costuma estar presente no Windows 10 atualizado. Se faltar, o programa abre no navegador. Para ter a janela, instale o [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 ### Aviso do SmartScreen
 
@@ -31,6 +33,8 @@ sudo apt install ./MeshcoreTracker-<versão>-ubuntu-amd64.deb
 ```
 
 O caminho precisa começar com `./`, ou o `apt` procura o nome nos repositórios. Depois, abra pelo menu de aplicativos ou com `meshcore-tracker`.
+
+O `apt` também instala o que a janela usa no sistema: Python 3, GTK e WebKitGTK 4.1. Testado no Ubuntu 22.04 e 24.04.
 
 Confira a integridade do arquivo, se quiser, na pasta do download:
 
@@ -59,6 +63,6 @@ Seus dados ficam em `~/.local/share/meshcore-tracker`. Apague essa pasta se quis
 Com Python 3.10 ou mais novo, use `iniciar.bat` no Windows ou `bash iniciar.sh` no Ubuntu. Os scripts criam o ambiente e instalam as dependências. No Ubuntu, o `iniciar.sh` não instala a regra `udev`, então é preciso entrar no grupo `dialout`:
 
 ```bash
-sudo apt install python3-venv
+sudo apt install python3-venv python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 sudo usermod -aG dialout $USER   # uma vez; depois saia e entre na sessão
 ```

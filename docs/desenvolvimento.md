@@ -5,6 +5,7 @@
 | Arquivo | Função |
 |---|---|
 | `app.py` | Servidor web, rotas e início do programa |
+| `janela.py` | Janela própria, com pywebview |
 | `automacao.py` | Laço da automação e cálculos de tempo |
 | `radio.py` | Conexão com o rádio pela biblioteca `meshcore` |
 | `portas.py` | Lista as portas seriais com o nome USB |
@@ -15,7 +16,7 @@
 | `instalador/` | Instalador do Windows e pacote `.deb` |
 | `scripts/` | Compilação, teste do programa compilado e geração de ícones |
 
-O programa usa [meshcore](https://github.com/meshcore-dev/meshcore_py), Starlette, Uvicorn, SQLite e Leaflet.
+O programa usa [meshcore](https://github.com/meshcore-dev/meshcore_py), Starlette, Uvicorn, pywebview, SQLite e Leaflet. A interface é a mesma na janela e no navegador, servida localmente pelo próprio programa.
 
 ## Rodar
 
@@ -31,7 +32,11 @@ Opções de `app.py`:
 |---|---|
 | `--porta-web N` | Porta da interface. O padrão é 8790 |
 | `--dados PASTA` | Pasta do banco. Use uma separada em testes |
-| `--sem-navegador` | Não abre o navegador |
+| `--navegador` | Usa o navegador em vez da janela |
+| `--sem-navegador` | Roda sem nenhuma interface |
+| `--registro-em-arquivo` | Grava os registros em `tracker.log` |
+
+No Ubuntu, a janela usa o GTK e o WebKit do sistema. Crie o ambiente com `python3 -m venv --system-site-packages .venv`, depois de instalar `python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1`.
 
 ## Testes
 
@@ -45,23 +50,28 @@ Os testes não usam rádio. Para testar o programa compilado, sem abrir portas n
 python scripts/testar_binario.py caminho/do/executavel
 ```
 
+Para testar a janela, em uma área de trabalho, sem abrir portas nem transmitir:
+
+```bash
+python scripts/testar_janela.py caminho/do/executavel
+```
+
 Ao testar com rádio, lembre que cada pedido transmite pela malha. Use só os seus nodes.
 
 ## Compilar
 
-```bash
+No Windows, com o Inno Setup 6 instalado:
+
+```powershell
 pip install pyinstaller
 python scripts/compilar.py
+iscc /DVersao=0.1.0 instalador\windows.iss
 ```
 
-O PyInstaller não gera binário de um sistema estando no outro. Compile em cada sistema. Depois:
+No Ubuntu, o pacote não usa o PyInstaller. Ele inclui o código e as bibliotecas, e roda no Python e no WebKit do sistema, o que evita incompatibilidades entre versões. Crie-o com o Python 3.10, o mais antigo suportado:
 
 ```bash
-# Ubuntu
 bash instalador/criar_deb.sh 0.1.0
-
-# Windows, com o Inno Setup 6 instalado
-iscc /DVersao=0.1.0 instalador\windows.iss
 ```
 
 Os instaladores ficam em `instalador-saida/`.

@@ -20,7 +20,7 @@ class Janela:
         import webview
 
         self.janela = webview.create_window(
-            TITULO, self.url, width=1280, height=800, min_size=(800, 500), text_select=True
+            TITULO, self.url, width=1100, height=680, min_size=(800, 500), maximized=True, text_select=True
         )
         # Manter os dados da janela guarda em cache os mapas ja baixados.
         webview.start(
