@@ -491,7 +491,7 @@ function opcoesConexao() {
   const opcoes = radiosBluetooth.map(r => ({
     valor: PREFIXO_BLUETOOTH + r.endereco,
     nome: r.nome,
-    texto: `${r.nome} (${r.endereco}, ${r.rssi} dBm)`,
+    texto: `${r.nome} (${r.endereco}, ${r.rssi == null ? 'pareado, sem anúncio' : `${r.rssi} dBm`})`,
   }));
   // Um radio conectado para de anunciar, mas precisa continuar na lista.
   const porta = estadoAtual?.porta;

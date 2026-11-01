@@ -5,6 +5,7 @@ import logging
 import time
 
 from meshcore import EventType, MeshCore
+from meshcore.ble_cx import BLEConnection
 
 logger = logging.getLogger("tracker")
 
@@ -14,6 +15,7 @@ PREFIXO_BLUETOOTH = "ble:"
 ESPERA_CONEXAO_BLUETOOTH_S = 20
 TENTATIVAS_BLUETOOTH = 3
 PAUSA_TENTATIVAS_BLUETOOTH_S = 3
+ESPERA_SOLTAR_BLUETOOTH_S = 5
 
 
 class RadioErro(Exception):
@@ -87,16 +89,31 @@ class Radio:
         )
         # Logo apos conectar, o enlace pode ainda nao estar criptografado, e a tentativa falha.
         for tentativa in range(1, TENTATIVAS_BLUETOOTH + 1):
+            # Conectar pelo endereco faz o Bleak procurar o anuncio, de onde vem o tipo do endereco.
+            # Sem esse tipo, o Windows pode nao reconhecer o pareamento.
+            conexao = BLEConnection(address=endereco)
+            mc = MeshCore(conexao)
             try:
-                mc = await asyncio.wait_for(MeshCore.create_ble(address=endereco), ESPERA_CONEXAO_BLUETOOTH_S)
-                if mc is not None:
+                resposta = await asyncio.wait_for(mc.connect(), ESPERA_CONEXAO_BLUETOOTH_S)
+                if resposta is not None:
                     return mc
                 logger.warning("Bluetooth, tentativa %d: o radio nao respondeu", tentativa)
             except Exception as falha:
                 logger.warning("Bluetooth, tentativa %d: %r", tentativa, falha)
+            await self._soltar_bluetooth(mc, conexao)
             if tentativa < TENTATIVAS_BLUETOOTH:
                 await asyncio.sleep(PAUSA_TENTATIVAS_BLUETOOTH_S)
         raise RadioErro(aviso)
+
+    async def _soltar_bluetooth(self, mc, conexao):
+        """A biblioteca so fecha o que marcou como conectado. Se a falha veio antes disso,
+        o enlace ficaria aberto, o radio pararia de anunciar e as proximas tentativas falhariam."""
+        try:
+            await asyncio.wait_for(mc.disconnect(), ESPERA_SOLTAR_BLUETOOTH_S)
+            if conexao.client is not None:
+                await asyncio.wait_for(conexao.client.disconnect(), ESPERA_SOLTAR_BLUETOOTH_S)
+        except Exception as falha:
+            logger.warning("Bluetooth, ao soltar a conexao: %r", falha)
 
     async def desconectar(self):
         async with self._trava:
