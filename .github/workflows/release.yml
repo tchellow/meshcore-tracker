@@ -12,8 +12,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -46,7 +46,7 @@ jobs:
           Start-Sleep -Seconds 5
           if (Test-Path (Join-Path $pasta 'meshcore-tracker.exe')) { throw 'A desinstalacao nao removeu o programa.' }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: instalador-saida/*.exe
@@ -56,8 +56,8 @@ jobs:
     # Compila no Ubuntu mais antigo suportado para o pacote rodar nos mais novos.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -85,7 +85,7 @@ jobs:
           sudo apt-get remove -y meshcore-tracker
           test ! -e /usr/bin/meshcore-tracker
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ubuntu
           path: instalador-saida/*.deb
@@ -97,8 +97,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: arquivos
           merge-multiple: true
