@@ -11,7 +11,17 @@ from bluetooth import (
     endereco_do_id_windows,
     filtrar_radios,
 )
-from radio import ERRO_FIRMWARE_USB, PAREAMENTO_NAO_ATENDIDO, TENTATIVAS_PAREAMENTO, PinNecessario, Radio, RadioErro, endereco_bluetooth, parear
+from radio import (
+    ERRO_FIRMWARE_USB,
+    PAREAMENTO_NAO_ATENDIDO,
+    TENTATIVAS_PAREAMENTO,
+    ConexaoBluetooth,
+    PinNecessario,
+    Radio,
+    RadioErro,
+    endereco_bluetooth,
+    parear,
+)
 
 
 class Filtro(unittest.TestCase):
@@ -139,14 +149,13 @@ class Conexao(unittest.TestCase):
         self.clientes = []
 
         def nova_conexao(**_):
-            conexao = mock.MagicMock()
-            conexao.client.disconnect = mock.AsyncMock()
-            self.clientes.append(conexao.client)
+            conexao = mock.MagicMock(soltar=mock.AsyncMock())
+            self.clientes.append(conexao)
             return conexao
 
         async def conectar():
             with mock.patch("radio.MeshCore", side_effect=list(instancias)), \
-                    mock.patch("radio.BLEConnection", side_effect=nova_conexao):
+                    mock.patch("radio.ConexaoBluetooth", side_effect=nova_conexao):
                 await radio.conectar("ble:AA:BB", pin)
 
         asyncio.run(conectar())
@@ -197,16 +206,16 @@ class Conexao(unittest.TestCase):
         radio = Radio()
         with self.assertRaises(RadioErro):
             self.rodar(radio, *[self.novo_mc(side_effect=OSError("Insufficient Authentication")) for _ in range(3)])
-        for cliente in self.clientes:
-            cliente.disconnect.assert_awaited_once()
+        for conexao in self.clientes:
+            conexao.soltar.assert_awaited_once()
 
     def test_falha_passageira_conecta_na_tentativa_seguinte(self):
         radio = Radio()
         falso = self.mc_que_conecta()
         self.rodar(radio, self.novo_mc(side_effect=OSError("Insufficient Authentication")), falso)
         self.assertEqual(len(self.clientes), 2)
-        self.clientes[0].disconnect.assert_awaited_once()
-        self.clientes[1].disconnect.assert_not_awaited()
+        self.clientes[0].soltar.assert_awaited_once()
+        self.clientes[1].soltar.assert_not_awaited()
         self.assertEqual(radio.porta, "ble:AA:BB")
         self.assertIsNone(radio.erro)
         self.assertTrue(radio.conectado)
@@ -220,6 +229,32 @@ class Conexao(unittest.TestCase):
 
         falso.commands.get_contacts = get_contacts
         return falso
+
+    def test_reconectar_solta_o_enlace_mesmo_marcado_como_desconectado(self):
+        radio = Radio()
+        self.rodar(radio, self.mc_que_conecta())
+        antiga = self.clientes[0]
+        radio.mc.is_connected = False
+        self.rodar(radio, self.mc_que_conecta())
+        antiga.soltar.assert_awaited_once()
+        self.assertTrue(radio.conectado)
+
+    def test_falha_ao_soltar_nao_impede_o_outro_passo(self):
+        radio = Radio()
+        mc = self.novo_mc(disconnect=None)
+        mc.disconnect = mock.AsyncMock(side_effect=OSError("falhou"))
+        conexao = mock.MagicMock(soltar=mock.AsyncMock())
+        asyncio.run(radio._soltar_bluetooth(mc, conexao))
+        conexao.soltar.assert_awaited_once()
+
+    def test_conexao_lembra_o_cliente_que_a_biblioteca_esqueceu(self):
+        conexao = ConexaoBluetooth(address="AA:BB")
+        cliente = mock.MagicMock(disconnect=mock.AsyncMock())
+        conexao.client = cliente
+        conexao.handle_disconnect(cliente)
+        self.assertIsNone(conexao.client)
+        asyncio.run(conexao.soltar())
+        cliente.disconnect.assert_awaited_once()
 
     def test_lista_longa_passa_do_silencio_sem_falhar(self):
         async def leitura(chegou):

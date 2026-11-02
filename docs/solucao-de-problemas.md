@@ -27,7 +27,9 @@ Causas mais comuns:
 - **Pareamento:** no Windows, o programa pede o PIN ao conectar um rádio sem pareamento. No Ubuntu, pareie nas configurações de Bluetooth do sistema. Se não funcionar, remova o pareamento antigo nas configurações do sistema e faça de novo.
 - **"O rádio recusou o pareamento":** confira o PIN. Em rádios sem tela, o padrão costuma ser `123456`.
 - **"O rádio não atendeu ao pareamento":** confira se ele está ligado, perto do computador e sem outro aparelho conectado.
-- **Outro aparelho conectado:** desconecte o celular e o MeshCore Web App. O rádio só aceita uma conexão.
+- **Pareia, mas cai ao reconectar:** se o rádio pareia e a conexão cai em cerca de 1 segundo, mesmo refazendo o pareamento, ele pode ter dados antigos de pareamento. Em um dos rádios testados, atualizar o firmware não bastou, e funcionou apagar os dados e regravar. Exporte antes o que puder, porque isso pode apagar os contatos e a identidade do node. Depois, remova o rádio nas configurações do sistema e no celular.
+- **Depois de suspender o computador:** a conexão cai durante a suspensão, e o programa tenta reconectar ao voltar. Enquanto o computador estiver suspenso, nenhum pedido de telemetria é enviado. Para rastreamento contínuo, ajuste as opções de energia do sistema.
+- **Outro aparelho conectado:** desconecte o celular e o MeshCore Web App. O rádio só aceita uma conexão, e o app do celular pode reconectar sozinho.
 - **Firmware:** confira se é o **Companion Bluetooth**.
 - **Sinal:** aproxime o rádio do computador. Wi-Fi e outros aparelhos Bluetooth podem interferir.
 - **Falhas em sequência:** aguarde um pouco. O programa tenta reconectar sozinho a cada 15 segundos enquanto o rádio estiver salvo, e cada rodada pode levar até cerca de 1 minuto. Se persistir, desligue e ligue o rádio ou o Bluetooth do computador.

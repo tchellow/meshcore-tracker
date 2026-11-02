@@ -1,5 +1,19 @@
 # Histórico de versões
 
+## [0.3.1] - 2026-11-01
+
+### Correções
+
+- **Bluetooth preso em "Reconectando...":** depois de uma falha na conexão, como ao voltar da suspensão do computador, o programa segurava a conexão antiga. O rádio parava de anunciar e só voltava ao fechar o programa. Agora a conexão é sempre liberada antes de tentar de novo.
+- **Falso erro de pareamento:** quando o Windows conclui o pareamento sem avisar, o programa agora confere o estado real em vez de mostrar uma falha.
+
+### Situação dos testes
+
+- **Windows:** a queda foi reproduzida com rádio real (T1000-E): a v0.3.0 reconectou 0 de 3 vezes, e esta versão, 3 de 3. A falha foi simulada; a volta de uma suspensão real ainda não foi testada.
+- **Windows, pareamento:** a nova conferência só atua quando o Windows não responde a tempo, e essa situação não se repetiu nos testes.
+- **Windows, reconexão com o pareamento guardado:** T-Deck, T1000-E e ProMicro NRF52840 reconectaram, mas o ProMicro oscilou em um dos testes (2 de 6, depois 6 de 6). Para uso contínuo, prefira a USB.
+- **Ubuntu:** instalação e janela testadas automaticamente, sem rádio real. O Bluetooth não foi testado nesse sistema.
+
 ## [0.3.0] - 2026-11-01
 
 ### Novidades
@@ -20,7 +34,7 @@
 - **Windows, Bluetooth:** pareamento e conexão testados com rádio real (ProMicro NRF52840 e T-Deck).
 - **Windows, USB:** conexão testada com rádio real (ProMicro NRF52840 e T-Deck). Telemetria testada pelo ProMicro.
 - **Ubuntu:** instalação e janela testadas automaticamente, sem rádio real. O Bluetooth não foi testado nesse sistema.
-- **Problema em aberto:** um dos rádios testados pareou por Bluetooth, mas não conectou e parou de anunciar. A causa ainda não foi identificada.
+- **Rádio que pareava, mas caía ao reconectar:** um dos rádios testados só voltou a funcionar depois de apagar os dados e regravar o firmware. Veja [Solução de problemas](docs/solucao-de-problemas.md#a-conexão-bluetooth-falha-ou-cai).
 - **Pareamento instável:** o Windows às vezes recusa o pedido sem motivo aparente, e o programa tenta de novo sozinho. Se o rádio for regravado, remova o pareamento antigo nas configurações do Windows.
 
 ## [0.2.2] - 2026-10-31

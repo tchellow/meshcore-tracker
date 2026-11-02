@@ -44,6 +44,30 @@ class PareamentoFalhou(RadioErro):
     pass
 
 
+class ConexaoBluetooth(BLEConnection):
+    """A biblioteca esquece o cliente quando detecta uma queda e, marcada como desconectada,
+    nao o fecha mais. Mas o Windows mantem o enlace enquanto o cliente nao for fechado:
+    o radio para de anunciar e nenhuma nova conexao funciona ate o programa terminar."""
+
+    def __init__(self, address):
+        self.ultimo_cliente = None
+        super().__init__(address=address)
+
+    @property
+    def client(self):
+        return self._client
+
+    @client.setter
+    def client(self, valor):
+        self._client = valor
+        if valor is not None:
+            self.ultimo_cliente = valor
+
+    async def soltar(self):
+        if self.ultimo_cliente is not None:
+            await self.ultimo_cliente.disconnect()
+
+
 def endereco_bluetooth(destino):
     """Retorna o endereco se o destino for Bluetooth, ou None se for uma porta USB."""
     return destino[len(PREFIXO_BLUETOOTH):] if destino.startswith(PREFIXO_BLUETOOTH) else None
@@ -96,7 +120,10 @@ async def _tentar_parear(endereco, pin):
         try:
             resultado = await asyncio.wait_for(personalizado.pair_async(tipos), ESPERA_PAREAMENTO_S)
         except asyncio.TimeoutError:
-            raise PareamentoFalhou(PAREAMENTO_NAO_ATENDIDO) from None
+            # O Windows pode concluir o pareamento sem avisar: vale o estado real.
+            if await precisa_parear(endereco):
+                raise PareamentoFalhou(PAREAMENTO_NAO_ATENDIDO) from None
+            return True, pediu_pin
         finally:
             personalizado.remove_pairing_requested(token)
     finally:
@@ -127,6 +154,7 @@ async def parear(endereco, pin):
 class Radio:
     def __init__(self):
         self.mc = None
+        self._conexao_bluetooth = None
         self.porta = None
         self.contatos = {}
         self.erro = None
@@ -195,11 +223,12 @@ class Radio:
         for tentativa in range(1, TENTATIVAS_BLUETOOTH + 1):
             # Conectar pelo endereco faz o Bleak procurar o anuncio, de onde vem o tipo do endereco.
             # Sem esse tipo, o Windows pode nao reconhecer o pareamento.
-            conexao = BLEConnection(address=endereco)
+            conexao = ConexaoBluetooth(address=endereco)
             mc = MeshCore(conexao)
             try:
                 resposta = await asyncio.wait_for(mc.connect(), ESPERA_CONEXAO_BLUETOOTH_S)
                 if resposta is not None:
+                    self._conexao_bluetooth = conexao
                     return mc
                 logger.warning("Bluetooth, tentativa %d: o radio nao respondeu", tentativa)
             except Exception as falha:
@@ -210,14 +239,12 @@ class Radio:
         raise RadioErro(aviso)
 
     async def _soltar_bluetooth(self, mc, conexao):
-        """A biblioteca so fecha o que marcou como conectado. Se a falha veio antes disso,
-        o enlace ficaria aberto, o radio pararia de anunciar e as proximas tentativas falhariam."""
-        try:
-            await asyncio.wait_for(mc.disconnect(), ESPERA_SOLTAR_BLUETOOTH_S)
-            if conexao.client is not None:
-                await asyncio.wait_for(conexao.client.disconnect(), ESPERA_SOLTAR_BLUETOOTH_S)
-        except Exception as falha:
-            logger.warning("Bluetooth, ao soltar a conexao: %r", falha)
+        """Um passo com falha nao pode impedir o outro: o enlace aberto bloquearia o radio."""
+        for passo in (mc.disconnect, conexao.soltar):
+            try:
+                await asyncio.wait_for(passo(), ESPERA_SOLTAR_BLUETOOTH_S)
+            except Exception as falha:
+                logger.warning("Bluetooth, ao soltar a conexao: %r", falha)
 
     async def desconectar(self):
         async with self._trava:
@@ -270,7 +297,10 @@ class Radio:
 
     async def _fechar(self):
         mc, self.mc = self.mc, None
-        if mc is not None:
+        conexao, self._conexao_bluetooth = self._conexao_bluetooth, None
+        if conexao is not None:
+            await self._soltar_bluetooth(mc, conexao)
+        elif mc is not None:
             await mc.disconnect()
 
     async def _ler_contatos(self):
